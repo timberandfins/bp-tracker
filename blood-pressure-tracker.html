@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"="width=device-width, initial-scale=1.0">
+    <title>Blood Pressure Tracker</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        @media print {
+            body {
+                background: white !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-section {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Lucide Icons as inline SVG components
+        const Calendar = () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+        );
+
+        const Activity = () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+            </svg>
+        );
+
+        function BloodPressureTracker() {
+            const [readings, setReadings] = useState([]);
+            const [systolic, setSystolic] = useState('');
+            const [diastolic, setDiastolic] = useState('');
+            const [pulse, setPulse] = useState('');
+            const [notes, setNotes] = useState('');
+            const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+            const [viewMode, setViewMode] = useState('calendar');
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                loadReadings();
+            }, []);
+
+            const loadReadings = () => {
+                try {
+                    const saved = localStorage.getItem('bp-readings');
+                    if (saved) {
+                        setReadings(JSON.parse(saved));
+                    }
+                } catch (error) {
+                    console.log('No existing readings found');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const saveReadings = (newReadings) => {
+                try {
+                    localStorage.setItem('bp-readings', JSON.stringify(newReadings));
+                    setReadings(newReadings);
+                } catch (error) {
+                    console.error('Failed to save readings:', error);
+                    alert('Failed to save reading. Please try again.');
+                }
+            };
+
+            const addReading = () => {
+                if (!systolic || !diastolic) {
+                    alert('Please enter both systolic and diastolic values');
+                    return;
+                }
+
+                const sys = parseInt(systolic);
+                const dia = parseInt(diastolic);
+
+                if (sys < 70 || sys > 250 || dia < 40 || dia > 150) {
+                    alert('Please enter valid blood pressure values');
+                    return;
+                }
+
+                const newReading = {
+                    id: Date.now(),
+                    date: selectedDate,
+                    systolic: sys,
+                    diastolic: dia,
+                    pulse: pulse ? parseInt(pulse) : null,
+                    notes: notes.trim(),
+                    timestamp: new Date().toISOString()
+                };
+
+                const updatedReadings = [...readings, newReading].sort((a, b) => 
+                    new Date(b.date) - new Date(a.date)
+                );
+
+                saveReadings(updatedReadings);
+                
+                setSystolic('');
+                setDiastolic('');
+                setPulse('');
+                setNotes('');
+                
+                alert('Reading saved successfully!');
+            };
+
+            const deleteReading = (id) => {
+                if (confirm('Are you sure you want to delete this reading?')) {
+                    const updatedReadings = readings.filter(r => r.id !== id);
+                    saveReadings(updatedReadings);
+                }
+            };
+
+            const exportToText = () => {
+                if (readings.length === 0) {
+                    alert('No readings to export');
+                    return;
+                }
+
+                let text = 'BLOOD PRESSURE READINGS\n';
+                text += '========================\n\n';
+                
+                if (averages) {
+                    text += `7-Day Average: ${averages.systolic}/${averages.diastolic}\n`;
+                    text += `Total Readings: ${readings.length}\n\n`;
+                }
+
+                text += 'DETAILED READINGS:\n';
+                text += '------------------\n\n';
+
+                readings.forEach(reading => {
+                    const category = getCategory(reading.systolic, reading.diastolic);
+                    const date = new Date(reading.date).toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                    });
+                    
+                    text += `Date: ${date}\n`;
+                    text += `Blood Pressure: ${reading.systolic}/${reading.diastolic} mmHg (${category.label})\n`;
+                    if (reading.pulse) {
+                        text += `Pulse: ${reading.pulse} bpm\n`;
+                    }
+                    if (reading.notes) {
+                        text += `Notes: ${reading.notes}\n`;
+                    }
+                    text += '\n';
+                });
+
+                // Create downloadable file
+                const blob = new Blob([text], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `blood-pressure-readings-${new Date().toISOString().split('T')[0]}.txt`;
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+
+            const exportToCSV = () => {
+                if (readings.length === 0) {
+                    alert('No readings to export');
+                    return;
+                }
+
+                let csv = 'Date,Systolic,Diastolic,Pulse,Category,Notes\n';
+                
+                readings.forEach(reading => {
+                    const category = getCategory(reading.systolic, reading.diastolic);
+                    const pulse = reading.pulse || '';
+                    const notes = reading.notes ? `"${reading.notes.replace(/"/g, '""')}"` : '';
+                    
+                    csv += `${reading.date},${reading.systolic},${reading.diastolic},${pulse},${category.label},${notes}\n`;
+                });
+
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `blood-pressure-readings-${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+
+            const printReadings = () => {
+                window.print();
+            };
+
+            const getCategory = (sys, dia) => {
+                if (sys < 135 && dia < 85) return { label: 'Normal', color: 'bg-green-100 text-green-800' };
+                if (sys < 140 || dia < 90) return { label: 'Elevated', color: 'bg-yellow-100 text-yellow-800' };
+                if (sys < 160 || dia < 100) return { label: 'Stage 1', color: 'bg-orange-100 text-orange-800' };
+                if (sys < 180 || dia < 120) return { label: 'Stage 2', color: 'bg-red-100 text-red-800' };
+                return { label: 'Crisis', color: 'bg-red-200 text-red-900' };
+            };
+
+            const getReadingsByDate = (date) => {
+                return readings.filter(r => r.date === date);
+            };
+
+            const getMonthDays = () => {
+                const [year, month] = selectedDate.split('-').map(Number);
+                const firstDay = new Date(year, month - 1, 1);
+                const lastDay = new Date(year, month, 0);
+                const days = [];
+                
+                const startPadding = firstDay.getDay();
+                for (let i = 0; i < startPadding; i++) {
+                    days.push(null);
+                }
+                
+                for (let i = 1; i <= lastDay.getDate(); i++) {
+                    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                    days.push(dateStr);
+                }
+                
+                return days;
+            };
+
+            const changeMonth = (direction) => {
+                const [year, month, day] = selectedDate.split('-').map(Number);
+                const newDate = new Date(year, month - 1 + direction, 1);
+                const newDateStr = `${newDate.getFullYear()}-${String(newDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                setSelectedDate(newDateStr);
+            };
+
+            const getAverages = () => {
+                if (readings.length === 0) return null;
+                const recent = readings.slice(0, 7);
+                const avgSys = Math.round(recent.reduce((sum, r) => sum + r.systolic, 0) / recent.length);
+                const avgDia = Math.round(recent.reduce((sum, r) => sum + r.diastolic, 0) / recent.length);
+                return { systolic: avgSys, diastolic: avgDia };
+            };
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 flex items-center justify-center">
+                        <div className="text-gray-600">Loading...</div>
+                    </div>
+                );
+            }
+
+            const averages = getAverages();
+            const monthDays = getMonthDays();
+            const todayReadings = getReadingsByDate(new Date().toISOString().split('T')[0]);
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+                    <div className="max-w-6xl mx-auto">
+                        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+                            <div className="flex items-center gap-3 mb-6">
+                                <Activity />
+                                <h1 className="text-3xl font-bold text-gray-800">Blood Pressure Tracker</h1>
+                            </div>
+
+                            {averages && (
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                    <div className="bg-indigo-50 p-4 rounded-lg">
+                                        <div className="text-sm text-gray-600 mb-1">7-Day Average</div>
+                                        <div className="text-2xl font-bold text-indigo-600">
+                                            {averages.systolic}/{averages.diastolic}
+                                        </div>
+                                    </div>
+                                    <div className="bg-blue-50 p-4 rounded-lg">
+                                        <div className="text-sm text-gray-600 mb-1">Total Readings</div>
+                                        <div className="text-2xl font-bold text-blue-600">{readings.length}</div>
+                                    </div>
+                                    <div className="bg-purple-50 p-4 rounded-lg">
+                                        <div className="text-sm text-gray-600 mb-1">Today's Readings</div>
+                                        <div className="text-2xl font-bold text-purple-600">{todayReadings.length}</div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex gap-2 mb-6 no-print">
+                                <button
+                                    onClick={() => setViewMode('calendar')}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                        viewMode === 'calendar'
+                                            ? 'bg-indigo-600 text-white'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    📅 Calendar
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('list')}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                        viewMode === 'list'
+                                            ? 'bg-indigo-600 text-white'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    📋 History
+                                </button>
+                            </div>
+
+                            <div className="bg-gray-50 p-6 rounded-xl mb-6 no-print">
+                                <h2 className="text-xl font-semibold mb-4 text-gray-700">Add Reading</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Date (you can select past dates)
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={selectedDate}
+                                            onChange={(e) => setSelectedDate(e.target.value)}
+                                            max={new Date().toISOString().split('T')[0]}
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Systolic
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={systolic}
+                                                onChange={(e) => setSystolic(e.target.value)}
+                                                placeholder="120"
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Diastolic
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={diastolic}
+                                                onChange={(e) => setDiastolic(e.target.value)}
+                                                placeholder="80"
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Pulse
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={pulse}
+                                                onChange={(e) => setPulse(e.target.value)}
+                                                placeholder="70"
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-4">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Notes (optional)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
+                                        placeholder="e.g., after exercise, morning reading..."
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                    />
+                                </div>
+                                <button
+                                    onClick={addReading}
+                                    className="mt-4 w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+                                >
+                                    Add Reading
+                                </button>
+                            </div>
+
+                            {viewMode === 'calendar' && (
+                                <div>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <button
+                                            onClick={() => changeMonth(-1)}
+                                            className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200"
+                                        >
+                                            ← Previous
+                                        </button>
+                                        <h2 className="text-xl font-semibold text-gray-700">
+                                            {new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                                        </h2>
+                                        <button
+                                            onClick={() => changeMonth(1)}
+                                            className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200"
+                                            disabled={new Date(selectedDate).getMonth() >= new Date().getMonth() && new Date(selectedDate).getFullYear() >= new Date().getFullYear()}
+                                        >
+                                            Next →
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-7 gap-2">
+                                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                                            <div key={day} className="text-center font-semibold text-gray-600 text-sm py-2">
+                                                {day}
+                                            </div>
+                                        ))}
+                                        {monthDays.map((date, idx) => {
+                                            if (!date) return <div key={`empty-${idx}`} className="aspect-square" />;
+                                            
+                                            const dayReadings = getReadingsByDate(date);
+                                            const isToday = date === new Date().toISOString().split('T')[0];
+                                            
+                                            return (
+                                                <div
+                                                    key={date}
+                                                    className={`aspect-square border rounded-lg p-2 ${
+                                                        isToday ? 'border-indigo-600 border-2 bg-indigo-50' : 'border-gray-200'
+                                                    } ${dayReadings.length > 0 ? 'bg-green-50' : 'bg-white'}`}
+                                                >
+                                                    <div className="text-sm font-medium text-gray-700">
+                                                        {new Date(date).getDate()}
+                                                    </div>
+                                                    {dayReadings.length > 0 && (
+                                                        <div className="mt-1">
+                                                            {dayReadings.map(reading => (
+                                                                <div key={reading.id} className="text-xs font-semibold text-indigo-600">
+                                                                    {reading.systolic}/{reading.diastolic}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {viewMode === 'list' && (
+                                <div>
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h2 className="text-xl font-semibold text-gray-700">Reading History</h2>
+                                        <div className="flex gap-2 flex-wrap no-print">
+                                            <button
+                                                onClick={printReadings}
+                                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+                                            >
+                                                🖨️ Print
+                                            </button>
+                                            <button
+                                                onClick={exportToText}
+                                                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+                                            >
+                                                📄 Export Text
+                                            </button>
+                                            <button
+                                                onClick={exportToCSV}
+                                                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium"
+                                            >
+                                                📊 Export CSV
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {readings.length === 0 ? (
+                                        <div className="text-center py-8 text-gray-500">
+                                            No readings yet. Add your first reading above!
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {readings.map(reading => {
+                                                const category = getCategory(reading.systolic, reading.diastolic);
+                                                return (
+                                                    <div key={reading.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                                                        <div className="flex justify-between items-start">
+                                                            <div className="flex-1">
+                                                                <div className="flex items-center gap-3 mb-2 flex-wrap">
+                                                                    <div className="text-lg font-bold text-gray-800">
+                                                                        {reading.systolic}/{reading.diastolic}
+                                                                    </div>
+                                                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${category.color}`}>
+                                                                        {category.label}
+                                                                    </span>
+                                                                    {reading.pulse && (
+                                                                        <span className="text-sm text-gray-600">
+                                                                            ♥ {reading.pulse} bpm
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="text-sm text-gray-600">
+                                                                    {new Date(reading.date).toLocaleDateString('en-US', { 
+                                                                        weekday: 'long', 
+                                                                        year: 'numeric', 
+                                                                        month: 'long', 
+                                                                        day: 'numeric' 
+                                                                    })}
+                                                                </div>
+                                                                {reading.notes && (
+                                                                    <div className="text-sm text-gray-500 mt-2 italic">
+                                                                        {reading.notes}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <button
+                                                                onClick={() => deleteReading(reading.id)}
+                                                                className="text-red-500 hover:text-red-700 text-sm ml-2 no-print"
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-lg p-4 text-sm text-gray-600">
+                            <div className="font-semibold mb-2">Blood Pressure Categories:</div>
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 bg-green-500 rounded"></div>
+                                    <span>Normal: &lt;135/85</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 bg-yellow-500 rounded"></div>
+                                    <span>Elevated: 135-139/85-89</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 bg-orange-500 rounded"></div>
+                                    <span>Stage 1: 140-159/90-99</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 bg-red-500 rounded"></div>
+                                    <span>Stage 2: 160-179/100-119</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 bg-red-700 rounded"></div>
+                                    <span>Crisis: ≥180/≥120</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<BloodPressureTracker />);
+    </script>
+</body>
+</html>
