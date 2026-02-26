@@ -1,15 +1,13 @@
 import { useState, useEffect } from "react";
 
 // ─── Load jsPDF ───────────────────────────────────────────────────────────────
-const loadJsPDF = () =>
-  new Promise((resolve) => {
-    if (window.jspdf) return resolve(window.jspdf.jsPDF);
-    const s = document.createElement("script");
-    s.src =
-      "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-    s.onload = () => resolve(window.jspdf.jsPDF);
-    document.head.appendChild(s);
-  });
+const loadJsPDF = () => new Promise(resolve => {
+  if (window.jspdf) return resolve(window.jspdf.jsPDF);
+  const s = document.createElement("script");
+  s.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+  s.onload = () => resolve(window.jspdf.jsPDF);
+  document.head.appendChild(s);
+});
 
 // ─── Inject Google Fonts ──────────────────────────────────────────────────────
 function useFont() {
@@ -18,131 +16,75 @@ function useFont() {
     const l = document.createElement("link");
     l.id = "hf-fonts";
     l.rel = "stylesheet";
-    l.href =
-      "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap";
+    l.href = "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap";
     document.head.appendChild(l);
   }, []);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const load = (k, fb) => {
-  try {
-    const v = localStorage.getItem(k);
-    return v ? JSON.parse(v) : fb;
-  } catch {
-    return fb;
-  }
-};
-const persist = (k, v) => {
-  try {
-    localStorage.setItem(k, JSON.stringify(v));
-  } catch {}
-};
+const load = (k, fb) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch { return fb; } };
+const persist = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
 const todayStr = () => {
   const d = new Date();
-  return (
-    d.getFullYear() +
-    "-" +
-    String(d.getMonth() + 1).padStart(2, "0") +
-    "-" +
-    String(d.getDate()).padStart(2, "0")
-  );
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
 };
 
 const fmtDate = (s) => {
-  const [y, m, d] = s.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  const [y,m,d] = s.split("-").map(Number);
+  return new Date(y,m-1,d).toLocaleDateString("en-US", {month:"short",day:"numeric",year:"numeric"});
 };
 
 const fmtShort = (s) => {
-  const [y, m, d] = s.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+  const [y,m,d] = s.split("-").map(Number);
+  return new Date(y,m-1,d).toLocaleDateString("en-US", {month:"short",day:"numeric"});
 };
 
 const dayLbl = (s) => {
-  const [y, m, d] = s.split("-").map(Number);
-  return new Date(y, m - 1, d)
-    .toLocaleDateString("en-US", { weekday: "short" })
-    .slice(0, 2)
-    .toUpperCase();
+  const [y,m,d] = s.split("-").map(Number);
+  return new Date(y,m-1,d).toLocaleDateString("en-US", {weekday:"short"}).slice(0,2).toUpperCase();
 };
 
-const last7 = () =>
-  Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    return (
-      d.getFullYear() +
-      "-" +
-      String(d.getMonth() + 1).padStart(2, "0") +
-      "-" +
-      String(d.getDate()).padStart(2, "0")
-    );
-  }).reverse();
+const last7 = () => Array.from({length:7}, (_,i) => {
+  const d = new Date(); d.setDate(d.getDate() - i);
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}).reverse();
 
 const calcHrs = (b, w) => {
   if (!b || !w) return null;
-  const [bh, bm] = b.split(":").map(Number);
-  const [wh, wm] = w.split(":").map(Number);
-  let m = wh * 60 + wm - (bh * 60 + bm);
+  const [bh,bm] = b.split(":").map(Number);
+  const [wh,wm] = w.split(":").map(Number);
+  let m = (wh*60+wm) - (bh*60+bm);
   if (m < 0) m += 1440;
-  return parseFloat((m / 60).toFixed(1));
+  return parseFloat((m/60).toFixed(1));
 };
 
 const getBP = (s, d) => {
-  if (s < 135 && d < 85)
-    return {
-      label: "NORMAL",
-      color: "#6fcf97",
-      dim: "rgba(111,207,151,0.15)",
-    };
-  if (s < 140 || d < 90)
-    return {
-      label: "ELEVATED",
-      color: "#c8a84b",
-      dim: "rgba(200,168,75,0.15)",
-    };
-  if (s < 160 || d < 100)
-    return {
-      label: "STAGE 1",
-      color: "#e07b39",
-      dim: "rgba(224,123,57,0.15)",
-    };
-  if (s < 180 || d < 120)
-    return {
-      label: "STAGE 2",
-      color: "#c0392b",
-      dim: "rgba(192,57,43,0.15)",
-    };
-  return { label: "CRISIS", color: "#e74c3c", dim: "rgba(231,76,60,0.2)" };
+  if (s<135 && d<85)  return { label:"NORMAL",   color:"#6fcf97", dim:"rgba(111,207,151,0.15)" };
+  if (s<140 || d<90)  return { label:"ELEVATED",  color:"#c8a84b", dim:"rgba(200,168,75,0.15)"  };
+  if (s<160 || d<100) return { label:"STAGE 1",   color:"#e07b39", dim:"rgba(224,123,57,0.15)"  };
+  if (s<180 || d<120) return { label:"STAGE 2",   color:"#c0392b", dim:"rgba(192,57,43,0.15)"   };
+  return                       { label:"CRISIS",    color:"#e74c3c", dim:"rgba(231,76,60,0.2)"    };
 };
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
-  bg: "#0c0c0e",
-  bgRaise: "#111115",
-  bgCard: "#141418",
-  line: "#222228",
-  line2: "#2a2a32",
-  text: "#e8e4dc",
-  dim: "#7a7670",
-  faint: "#3a3a42",
-  copper: "#c8914a",
+  bg:       "#0c0c0e",
+  bgRaise:  "#111115",
+  bgCard:   "#141418",
+  line:     "#222228",
+  line2:    "#2a2a32",
+  text:     "#e8e4dc",
+  dim:      "#7a7670",
+  faint:    "#3a3a42",
+  copper:   "#c8914a",
   copperLo: "#7a4e1e",
   copperBg: "rgba(200,145,74,0.10)",
-  green: "#6fcf97",
-  red: "#c0392b",
-  amber: "#c8a84b",
+  green:    "#6fcf97",
+  red:      "#c0392b",
+  amber:    "#c8a84b",
   fontSans: "'Outfit', system-ui, sans-serif",
-  fontSerif: "'Cormorant Garamond', Georgia, serif",
+  fontSerif:"'Cormorant Garamond', Georgia, serif",
   fontMono: "'JetBrains Mono', monospace",
 };
 
@@ -179,69 +121,40 @@ function Styles() {
 
 function Rule({ label }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "20px 0" }}>
-      <div style={{ flex: 1, height: 1, background: C.line }} />
-      {label && (
-        <span
-          style={{
-            fontSize: 9,
-            letterSpacing: 2.5,
-            color: C.faint,
-            fontWeight: 600,
-            textTransform: "uppercase",
-          }}
-        >
-          {label}
-        </span>
-      )}
-      <div style={{ flex: 1, height: 1, background: C.line }} />
+    <div style={{display:"flex",alignItems:"center",gap:12,margin:"20px 0"}}>
+      <div style={{flex:1,height:1,background:C.line}} />
+      {label && <span style={{fontSize:9,letterSpacing:2.5,color:C.faint,fontWeight:600,textTransform:"uppercase"}}>{label}</span>}
+      <div style={{flex:1,height:1,background:C.line}} />
     </div>
   );
 }
 
-function Card({ children, accent = false, style = {} }) {
+function Card({ children, accent=false, style={} }) {
   return (
-    <div
-      style={{
-        background: C.bgCard,
-        border: "1px solid " + (accent ? C.copperLo : C.line),
-        borderRadius: 4,
-        padding: "20px",
-        marginBottom: 12,
-        position: "relative",
-        overflow: "hidden",
-        ...style,
-      }}
-    >
-      {accent && (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: 2,
-            height: "100%",
-            background: C.copper,
-          }}
-        />
-      )}
+    <div style={{
+      background: C.bgCard,
+      border: "1px solid " + (accent ? C.copperLo : C.line),
+      borderRadius: 4,
+      padding: "20px",
+      marginBottom: 12,
+      position: "relative",
+      overflow: "hidden",
+      ...style
+    }}>
+      {accent && <div style={{position:"absolute",top:0,left:0,width:2,height:"100%",background:C.copper}} />}
       {children}
     </div>
   );
 }
 
+function FieldLabel({ children }) {
+  return <div style={{fontSize:9,letterSpacing:2.5,color:C.dim,fontWeight:600,textTransform:"uppercase",marginBottom:8}}>{children}</div>;
+}
+
 const inputStyle = {
-  width: "100%",
-  background: C.bgRaise,
-  border: "1px solid " + C.line2,
-  borderRadius: 3,
-  color: C.text,
-  fontFamily: C.fontMono,
-  fontSize: 15,
-  padding: "11px 14px",
-  outline: "none",
-  WebkitAppearance: "none",
-  appearance: "none",
+  width:"100%", background:C.bgRaise, border:"1px solid "+C.line2, borderRadius:3,
+  color:C.text, fontFamily:C.fontMono, fontSize:15, padding:"11px 14px",
+  outline:"none", WebkitAppearance:"none", appearance:"none",
 };
 
 function Input(props) {
@@ -249,170 +162,94 @@ function Input(props) {
   return (
     <input
       {...props}
-      style={{
-        ...inputStyle,
-        borderColor: focused ? C.copperLo : C.line2,
-        ...props.style,
-      }}
-      onFocus={(e) => {
-        setFocused(true);
-        props.onFocus?.(e);
-      }}
-      onBlur={(e) => {
-        setFocused(false);
-        props.onBlur?.(e);
-      }}
+      style={{...inputStyle, borderColor: focused ? C.copperLo : C.line2, ...props.style}}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
     />
   );
 }
 
-function PrimaryBtn({
-  children,
-  onClick,
-  disabled = false,
-  color = C.copper,
-  textColor = "#0c0c0e",
-  style = {},
-}) {
+function PrimaryBtn({ children, onClick, disabled=false, color=C.copper, textColor="#0c0c0e", style={} }) {
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="press"
-      style={{
-        width: "100%",
-        background: disabled ? C.line : color,
-        color: disabled ? C.faint : textColor,
-        border: "none",
-        borderRadius: 3,
-        fontWeight: 700,
-        fontSize: 12,
-        letterSpacing: 2,
-        textTransform: "uppercase",
-        padding: "14px 20px",
-        cursor: disabled ? "not-allowed" : "pointer",
-        fontFamily: C.fontSans,
-        opacity: disabled ? 0.5 : 1,
-        ...style,
-      }}
-    >
-      {children}
-    </button>
+    <button onClick={onClick} disabled={disabled} className="press" style={{
+      width:"100%", background: disabled ? C.line : color,
+      color: disabled ? C.faint : textColor,
+      border:"none", borderRadius:3, fontWeight:700, fontSize:12,
+      letterSpacing:2, textTransform:"uppercase", padding:"14px 20px",
+      cursor: disabled ? "not-allowed" : "pointer",
+      fontFamily: C.fontSans,
+      opacity: disabled ? 0.5 : 1,
+      ...style
+    }}>{children}</button>
   );
 }
 
-function GhostBtn({ children, onClick, style = {} }) {
+function GhostBtn({ children, onClick, style={} }) {
   const [hov, setHov] = useState(false);
   return (
-    <button
-      onClick={onClick}
-      className="press"
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
+    <button onClick={onClick} className="press"
+      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{
-        background: "transparent",
-        border: "1px solid " + (hov ? C.copper : C.line2),
-        borderRadius: 3,
-        color: hov ? C.copper : C.dim,
-        fontSize: 10,
-        letterSpacing: 1.5,
-        textTransform: "uppercase",
-        fontWeight: 600,
-        padding: "8px 14px",
-        cursor: "pointer",
-        fontFamily: C.fontSans,
-        transition: "border-color 0.15s,color 0.15s",
-        ...style,
-      }}
-    >
-      {children}
-    </button>
+        background:"transparent",
+        border:"1px solid " + (hov ? C.copper : C.line2),
+        borderRadius:3, color: hov ? C.copper : C.dim,
+        fontSize:10, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600,
+        padding:"8px 14px", cursor:"pointer", fontFamily:C.fontSans,
+        transition:"border-color 0.15s,color 0.15s",
+        ...style
+      }}>{children}</button>
   );
 }
 
-function StatTile({ label, value, sub, color = C.copper }) {
+function StatTile({ label, value, sub, color=C.copper }) {
   return (
-    <div
-      style={{
-        background: C.bgCard,
-        border: "1px solid " + C.line,
-        borderRadius: 4,
-        padding: "16px 14px",
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          position: "absolute",
-          bottom: -10,
-          right: 0,
-          fontSize: 56,
-          opacity: 0.035,
-          fontFamily: C.fontSerif,
-          fontWeight: 700,
-          color: C.text,
-          lineHeight: 1,
-          pointerEvents: "none",
-          userSelect: "none",
-          letterSpacing: -2,
-        }}
-      >
-        {value}
-      </div>
-      <div style={{ fontSize: 9, letterSpacing: 2.5, color: C.faint, textTransform: "uppercase", marginBottom: 10, fontWeight: 600 }}>
-        {label}
-      </div>
-      <div style={{ fontFamily: C.fontMono, fontSize: 18, fontWeight: 600, color, lineHeight: 1, marginBottom: 4 }}>
-        {value}
-      </div>
-      {sub && <div style={{ fontSize: 10, color: C.faint, letterSpacing: 0.5, marginTop: 6 }}>{sub}</div>}
+    <div style={{background:C.bgCard,border:"1px solid "+C.line,borderRadius:4,padding:"16px 14px",position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",bottom:-10,right:0,fontSize:56,opacity:0.035,fontFamily:C.fontSerif,fontWeight:700,color:C.text,lineHeight:1,pointerEvents:"none",userSelect:"none",letterSpacing:-2}}>{value}</div>
+      <div style={{fontSize:9,letterSpacing:2.5,color:C.faint,textTransform:"uppercase",marginBottom:10,fontWeight:600}}>{label}</div>
+      <div style={{fontFamily:C.fontMono,fontSize:18,fontWeight:600,color,lineHeight:1,marginBottom:4}}>{value}</div>
+      {sub && <div style={{fontSize:10,color:C.faint,letterSpacing:0.5,marginTop:6}}>{sub}</div>}
     </div>
   );
 }
 
-function ProgressBar({ value, max, color = C.copper }) {
-  const pct = Math.min(100, (value / Math.max(max, 1)) * 100);
+function ProgressBar({ value, max, color=C.copper }) {
+  const pct = Math.min(100, (value / Math.max(max,1)) * 100);
   const over = pct >= 100;
   return (
     <div>
-      <div style={{ height: 2, background: C.line, borderRadius: 1, overflow: "hidden", marginTop: 12 }}>
-        <div style={{ height: "100%", width: pct + "%", background: over ? C.red : color, borderRadius: 1, transition: "width 0.5s ease" }} />
+      <div style={{height:2,background:C.line,borderRadius:1,overflow:"hidden",marginTop:12}}>
+        <div style={{height:"100%",width:pct+"%",background:over?C.red:color,borderRadius:1,transition:"width 0.5s ease"}} />
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7, fontSize: 10, color: C.dim, letterSpacing: 0.3 }}>
-        <span style={{ fontFamily: C.fontMono }}>{value}</span>
-        <span style={{ color: over ? C.red : C.faint }}>/ {max}</span>
+      <div style={{display:"flex",justifyContent:"space-between",marginTop:7,fontSize:10,color:C.dim,letterSpacing:0.3}}>
+        <span style={{fontFamily:C.fontMono}}>{value}</span>
+        <span style={{color:over?C.red:C.faint}}>/ {max}</span>
       </div>
     </div>
   );
 }
 
-function MiniChart({ values, color = C.copper, overColor = C.red, threshold, dates }) {
-  const mx = Math.max(...values, threshold || 1, 1);
+function MiniChart({ values, color=C.copper, overColor=C.red, threshold, dates }) {
+  const mx = Math.max(...values, threshold||1, 1);
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 48 }}>
-        {values.map((v, i) => (
-          <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%" }}>
-            <div
-              style={{
-                width: "100%",
-                height: Math.max((v / mx) * 44, v > 0 ? 3 : 1) + "px",
-                background: threshold && v > threshold ? overColor : v > 0 ? color : C.line,
-                borderRadius: "2px 2px 0 0",
-                opacity: v > 0 ? 0.9 : 0.3,
-                transition: "height 0.3s",
-              }}
-            />
+      <div style={{display:"flex",alignItems:"flex-end",gap:5,height:48}}>
+        {values.map((v,i) => (
+          <div key={i} style={{flex:1,display:"flex",flexDirection:"column",justifyContent:"flex-end",height:"100%"}}>
+            <div style={{
+              width:"100%",
+              height: Math.max((v/mx)*44, v>0?3:1)+"px",
+              background: threshold&&v>threshold ? overColor : v>0 ? color : C.line,
+              borderRadius:"2px 2px 0 0",
+              opacity: v>0 ? 0.9 : 0.3,
+              transition: "height 0.3s",
+            }} />
           </div>
         ))}
       </div>
       {dates && (
-        <div style={{ display: "flex", gap: 5, marginTop: 6 }}>
-          {dates.map((d, i) => (
-            <div key={i} style={{ flex: 1, textAlign: "center", fontSize: 8, color: C.faint, letterSpacing: 1, fontFamily: C.fontMono }}>
-              {d}
-            </div>
+        <div style={{display:"flex",gap:5,marginTop:6}}>
+          {dates.map((d,i) => (
+            <div key={i} style={{flex:1,textAlign:"center",fontSize:8,color:C.faint,letterSpacing:1,fontFamily:C.fontMono}}>{d}</div>
           ))}
         </div>
       )}
@@ -420,19 +257,15 @@ function MiniChart({ values, color = C.copper, overColor = C.red, threshold, dat
   );
 }
 
-function TapCounter({ value, onChange, color = C.copper }) {
+function TapCounter({ value, onChange, color=C.copper }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 32, padding: "20px 0 16px" }}>
-      {["-", "+"].map((op) => (
-        <CircleBtn key={op} label={op} color={color} onClick={() => onChange(op === "-" ? Math.max(0, value - 1) : value + 1)} />
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:32,padding:"20px 0 16px"}}>
+      {["-","+"]. map(op => (
+        <CircleBtn key={op} label={op} color={color} onClick={() => onChange(op==="-" ? Math.max(0,value-1) : value+1)} />
       ))}
-      <div style={{ textAlign: "center", minWidth: 80 }}>
-        <div style={{ fontFamily: C.fontMono, fontSize: 64, fontWeight: 600, color, lineHeight: 1, letterSpacing: -2 }}>
-          {value}
-        </div>
-        <div style={{ fontSize: 9, letterSpacing: 2.5, color: C.dim, textTransform: "uppercase", marginTop: 8, fontWeight: 600 }}>
-          Drinks Today
-        </div>
+      <div style={{textAlign:"center",minWidth:80,order:-1,order:0}}>
+        <div style={{fontFamily:C.fontMono,fontSize:64,fontWeight:600,color,lineHeight:1,letterSpacing:-2}}>{value}</div>
+        <div style={{fontSize:9,letterSpacing:2.5,color:C.dim,textTransform:"uppercase",marginTop:8,fontWeight:600}}>Drinks Today</div>
       </div>
     </div>
   );
@@ -441,54 +274,30 @@ function TapCounter({ value, onChange, color = C.copper }) {
 function CircleBtn({ label, color, onClick }) {
   const [hov, setHov] = useState(false);
   return (
-    <button
-      onClick={onClick}
-      className="press"
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
+    <button onClick={onClick} className="press"
+      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{
-        width: 44,
-        height: 44,
-        borderRadius: "50%",
-        border: "1px solid " + (hov ? color : C.line2),
-        background: "transparent",
-        color: hov ? color : C.dim,
-        fontSize: 22,
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        transition: "border-color 0.15s,color 0.15s",
-        fontFamily: C.fontSans,
-        lineHeight: 1,
-      }}
-    >
-      {label}
-    </button>
+        width:44,height:44,borderRadius:"50%",
+        border:"1px solid " + (hov ? color : C.line2),
+        background:"transparent", color: hov ? color : C.dim,
+        fontSize:22, cursor:"pointer",
+        display:"flex",alignItems:"center",justifyContent:"center",
+        transition:"border-color 0.15s,color 0.15s",
+        fontFamily:C.fontSans,lineHeight:1,
+      }}>{label}</button>
   );
 }
 
-function Pill({ label, active, onClick, color = C.copper }) {
+function Pill({ label, active, onClick, color=C.copper }) {
   return (
-    <button
-      onClick={onClick}
-      className="press"
-      style={{
-        background: active ? color : "transparent",
-        border: "1px solid " + (active ? color : C.line2),
-        borderRadius: 3,
-        color: active ? "#0c0c0e" : C.dim,
-        padding: "7px 12px",
-        cursor: "pointer",
-        fontSize: 12,
-        fontWeight: active ? 700 : 400,
-        letterSpacing: 0.3,
-        transition: "all 0.15s",
-        fontFamily: C.fontSans,
-      }}
-    >
-      {label}
-    </button>
+    <button onClick={onClick} className="press" style={{
+      background: active ? color : "transparent",
+      border: "1px solid " + (active ? color : C.line2),
+      borderRadius:3, color: active ? "#0c0c0e" : C.dim,
+      padding:"7px 12px", cursor:"pointer", fontSize:12,
+      fontWeight: active ? 700 : 400, letterSpacing:0.3,
+      transition:"all 0.15s", fontFamily:C.fontSans,
+    }}>{label}</button>
   );
 }
 
@@ -498,38 +307,27 @@ function DataRow({ left, right, sub, badge, onDelete }) {
     <div
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
-      style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 0", borderBottom: "1px solid " + C.line }}
+      style={{display:"flex",alignItems:"center",gap:12,padding:"13px 0",borderBottom:"1px solid "+C.line}}
     >
-      <div style={{ flex: 1 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 3 }}>
-          <span style={{ fontFamily: C.fontMono, fontSize: 16, fontWeight: 600, color: C.text }}>{left}</span>
+      <div style={{flex:1}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:3}}>
+          <span style={{fontFamily:C.fontMono,fontSize:16,fontWeight:600,color:C.text}}>{left}</span>
           {badge && (
-            <span style={{ fontSize: 9, letterSpacing: 1.5, fontWeight: 700, padding: "2px 7px", borderRadius: 2, background: badge.dim, color: badge.color, textTransform: "uppercase" }}>
-              {badge.label}
-            </span>
+            <span style={{fontSize:9,letterSpacing:1.5,fontWeight:700,padding:"2px 7px",borderRadius:2,background:badge.dim,color:badge.color,textTransform:"uppercase"}}>{badge.label}</span>
           )}
         </div>
-        <div style={{ fontSize: 11, color: C.dim, letterSpacing: 0.3 }}>{sub}</div>
+        <div style={{fontSize:11,color:C.dim,letterSpacing:0.3}}>{sub}</div>
       </div>
-      {right && <span style={{ fontFamily: C.fontMono, fontSize: 13, color: C.dim }}>{right}</span>}
+      {right && <span style={{fontFamily:C.fontMono,fontSize:13,color:C.dim}}>{right}</span>}
       {onDelete && (
-        <button
-          onClick={onDelete}
-          style={{
-            background: "transparent",
-            border: "1px solid " + (hov ? C.red : C.faint),
-            color: hov ? C.red : C.faint,
-            borderRadius: 2,
-            padding: "4px 8px",
-            cursor: "pointer",
-            fontSize: 11,
-            fontFamily: C.fontSans,
-            fontWeight: 600,
-            transition: "all 0.15s",
-          }}
-        >
-          ✕
-        </button>
+        <button onClick={onDelete} style={{
+          background:"transparent",
+          border:"1px solid " + (hov ? C.red : C.faint),
+          color: hov ? C.red : C.faint,
+          borderRadius:2,padding:"4px 8px",cursor:"pointer",
+          fontSize:11,fontFamily:C.fontSans,fontWeight:600,
+          transition:"all 0.15s",
+        }}>✕</button>
       )}
     </div>
   );
@@ -537,21 +335,19 @@ function DataRow({ left, right, sub, badge, onDelete }) {
 
 function EmptyState({ msg }) {
   return (
-    <div style={{ textAlign: "center", padding: "40px 20px", color: C.faint }}>
-      <div style={{ fontSize: 28, marginBottom: 12, opacity: 0.3 }}>◯</div>
-      <div style={{ fontSize: 10, letterSpacing: 2, textTransform: "uppercase", fontWeight: 600 }}>{msg}</div>
+    <div style={{textAlign:"center",padding:"40px 20px",color:C.faint}}>
+      <div style={{fontSize:28,marginBottom:12,opacity:0.3}}>◯</div>
+      <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",fontWeight:600}}>{msg}</div>
     </div>
   );
 }
 
 function SectionHead({ title, sub, action }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 24 }}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:24}}>
       <div>
-        <div style={{ fontSize: 10, letterSpacing: 3, color: C.copper, fontWeight: 600, textTransform: "uppercase", marginBottom: 6 }}>
-          ◈ &nbsp;{title}
-        </div>
-        {sub && <div style={{ fontSize: 12, color: C.dim, letterSpacing: 0.3 }}>{sub}</div>}
+        <div style={{fontSize:10,letterSpacing:3,color:C.copper,fontWeight:600,textTransform:"uppercase",marginBottom:6}}>◈ &nbsp;{title}</div>
+        {sub && <div style={{fontSize:12,color:C.dim,letterSpacing:0.3}}>{sub}</div>}
       </div>
       {action}
     </div>
@@ -560,30 +356,12 @@ function SectionHead({ title, sub, action }) {
 
 function ConfirmDialog({ msg, onYes, onNo }) {
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(8,8,10,0.9)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div style={{ background: C.bgCard, border: "1px solid " + C.line2, borderRadius: 6, padding: 28, maxWidth: 320, width: "100%", boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }}>
-        <div style={{ fontSize: 15, lineHeight: 1.6, color: C.text, marginBottom: 24 }}>{msg}</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <div style={{position:"fixed",inset:0,background:"rgba(8,8,10,0.9)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:C.bgCard,border:"1px solid "+C.line2,borderRadius:6,padding:28,maxWidth:320,width:"100%",boxShadow:"0 24px 80px rgba(0,0,0,0.6)"}}>
+        <div style={{fontSize:15,lineHeight:1.6,color:C.text,marginBottom:24}}>{msg}</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           <GhostBtn onClick={onNo}>Cancel</GhostBtn>
-          <button
-            onClick={onYes}
-            className="press"
-            style={{
-              background: "transparent",
-              border: "1px solid " + C.red,
-              borderRadius: 3,
-              color: C.red,
-              padding: "10px",
-              cursor: "pointer",
-              fontSize: 11,
-              letterSpacing: 1.5,
-              fontWeight: 600,
-              textTransform: "uppercase",
-              fontFamily: C.fontSans,
-            }}
-          >
-            Remove
-          </button>
+          <button onClick={onYes} className="press" style={{background:"transparent",border:"1px solid "+C.red,borderRadius:3,color:C.red,padding:"10px",cursor:"pointer",fontSize:11,letterSpacing:1.5,fontWeight:600,textTransform:"uppercase",fontFamily:C.fontSans}}>Remove</button>
         </div>
       </div>
     </div>
@@ -593,284 +371,158 @@ function ConfirmDialog({ msg, onYes, onNo }) {
 // ─── PDF Builder ──────────────────────────────────────────────────────────────
 async function buildPDF(sections, data) {
   const JsPDF = await loadJsPDF();
-  const doc = new JsPDF({ unit: "mm", format: "a4" });
-  const PW = 210,
-    PH = 297,
-    M = 16,
-    CW = PW - M * 2;
+  const doc = new JsPDF({ unit:"mm", format:"a4" });
+  const PW=210, PH=297, M=16, CW=PW-M*2;
   let y = 0;
-
-  const np = () => {
-    doc.addPage();
-    doc.setFillColor(12, 12, 14);
-    doc.rect(0, 0, PW, PH, "F");
-    y = 0;
-  };
-
-  const chk = (n = 20) => {
-    if (y + n > PH - 14) np();
-  };
-
-  const { bpReadings, drinkLog, drinkGoals, sleepLog, exercises, exLog } = data;
-
+  const np = () => { doc.addPage(); doc.setFillColor(12,12,14); doc.rect(0,0,PW,PH,"F"); y=0; };
+  const chk = (n=20) => { if (y+n > PH-14) np(); };
+  const { bpReadings,drinkLog,drinkGoals,sleepLog,exercises,exLog } = data;
   const days7 = last7();
-  const weekDrinks = days7.reduce((s, d) => s + (drinkLog[d] || 0), 0);
+  const weekDrinks = days7.reduce((s,d) => s+(drinkLog[d]||0), 0);
+  const bpR = bpReadings.slice(0,7);
+  const bpAvg = bpR.length ? {
+    s: Math.round(bpR.reduce((a,x) => a+x.systolic,0)/bpR.length),
+    d: Math.round(bpR.reduce((a,x) => a+x.diastolic,0)/bpR.length)
+  } : null;
+  const shV = days7.map(d => sleepLog[d]?.hours).filter(Boolean);
+  const slAvg = shV.length ? (shV.reduce((a,v) => a+v,0)/shV.length).toFixed(1) : null;
+  const sqV = days7.map(d => sleepLog[d]?.quality).filter(v => v!=null);
+  const sqAvg = sqV.length ? (sqV.reduce((a,v) => a+v,0)/sqV.length).toFixed(1) : null;
 
-  const bpR = bpReadings.slice(0, 7);
-  const bpAvg = bpR.length
-    ? {
-        s: Math.round(bpR.reduce((a, x) => a + x.systolic, 0) / bpR.length),
-        d: Math.round(bpR.reduce((a, x) => a + x.diastolic, 0) / bpR.length),
-      }
-    : null;
-
-  const shV = days7.map((d) => sleepLog[d]?.hours).filter(Boolean);
-  const slAvg = shV.length ? (shV.reduce((a, v) => a + v, 0) / shV.length).toFixed(1) : null;
-
-  const sqV = days7.map((d) => sleepLog[d]?.quality).filter((v) => v != null);
-  const sqAvg = sqV.length ? (sqV.reduce((a, v) => a + v, 0) / sqV.length).toFixed(1) : null;
-
-  const COP = [200, 145, 74],
-    DARK = [20, 20, 24],
-    LINE = [34, 34, 40],
-    TXT = [232, 228, 220],
-    DIM = [122, 118, 112],
-    FAINT = [58, 58, 66];
+  const COP=[200,145,74], DARK=[20,20,24], LINE=[34,34,40], TXT=[232,228,220], DIM=[122,118,112], FAINT=[58,58,66];
 
   // Cover
-  doc.setFillColor(12, 12, 14);
-  doc.rect(0, 0, PW, PH, "F");
-  doc.setFillColor(...COP);
-  doc.rect(0, 0, 1.5, PH, "F");
+  doc.setFillColor(12,12,14); doc.rect(0,0,PW,PH,"F");
+  doc.setFillColor(...COP); doc.rect(0,0,1.5,PH,"F");
+  doc.setTextColor(...TXT); doc.setFontSize(28); doc.setFont("helvetica","bold");
+  doc.text("HEALTH",M+6,36);
+  doc.setTextColor(...COP); doc.text("REPORT",M+6,48);
+  doc.setTextColor(...DIM); doc.setFontSize(9); doc.setFont("helvetica","normal");
+  doc.text(new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"}).toUpperCase(), M+6, 58);
 
-  doc.setTextColor(...TXT);
-  doc.setFontSize(28);
-  doc.setFont("helvetica", "bold");
-  doc.text("HEALTH", M + 6, 36);
-
-  doc.setTextColor(...COP);
-  doc.text("REPORT", M + 6, 48);
-
-  doc.setTextColor(...DIM);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }).toUpperCase(), M + 6, 58);
-
-  const pLabels = { bp: "BLOOD PRESSURE", drink: "DRINKING", sleep: "SLEEP", exercise: "EXERCISE" };
-  let px = M + 6,
-    py = 66;
-  sections.forEach((s) => {
+  const pLabels = { bp:"BLOOD PRESSURE", drink:"DRINKING", sleep:"SLEEP", exercise:"EXERCISE" };
+  let px=M+6, py=66;
+  sections.forEach(s => {
     const lbl = pLabels[s] || s;
-    const tw = doc.getTextWidth(lbl) + 8;
-    doc.setFillColor(...LINE);
-    doc.rect(px, py, tw, 6, "F");
-    doc.setTextColor(...COP);
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "bold");
-    doc.text(lbl, px + 4, py + 4.5);
-    px += tw + 4;
+    const tw = doc.getTextWidth(lbl)+8;
+    doc.setFillColor(...LINE); doc.rect(px,py,tw,6,"F");
+    doc.setTextColor(...COP); doc.setFontSize(7); doc.setFont("helvetica","bold");
+    doc.text(lbl, px+4, py+4.5);
+    px += tw+4;
   });
 
-  const sy = 80,
-    sh = 20,
-    sw = (CW - 4) / 2;
+  const sy=80, sh=20, sw=(CW-4)/2;
   const cards = [
-    { l: "7-DAY BP AVG", v: bpAvg ? bpAvg.s + "/" + bpAvg.d : "—", s: bpAvg ? getBP(bpAvg.s, bpAvg.d).label : "" },
-    { l: "WEEKLY DRINKS", v: String(weekDrinks), s: "GOAL: " + drinkGoals.weekly },
-    { l: "AVG SLEEP", v: slAvg ? slAvg + "H" : "—", s: "7-DAY AVG" },
-    { l: "SLEEP QUALITY", v: sqAvg ? sqAvg + "/10" : "—", s: "7-DAY AVG" },
+    { l:"7-DAY BP AVG",     v: bpAvg ? bpAvg.s+"/"+bpAvg.d : "—",   s: bpAvg ? getBP(bpAvg.s,bpAvg.d).label : "" },
+    { l:"WEEKLY DRINKS",    v: String(weekDrinks),                      s: "GOAL: "+drinkGoals.weekly },
+    { l:"AVG SLEEP",        v: slAvg ? slAvg+"H" : "—",                s: "7-DAY AVG" },
+    { l:"SLEEP QUALITY",    v: sqAvg ? sqAvg+"/10" : "—",              s: "7-DAY AVG" },
   ];
-
-  cards.forEach(({ l, v, s }, i) => {
-    const cx = M + (i % 2) * (sw + 4),
-      cy = sy + Math.floor(i / 2) * (sh + 4);
-    doc.setFillColor(...DARK);
-    doc.rect(cx, cy, sw, sh, "F");
-    doc.setFillColor(...COP);
-    doc.rect(cx, cy, 1, sh, "F");
-    doc.setTextColor(...DIM);
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "normal");
-    doc.text(l, cx + 5, cy + 6);
-    doc.setTextColor(...COP);
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text(v, cx + 5, cy + 14);
-    if (s) {
-      doc.setTextColor(...FAINT);
-      doc.setFontSize(6.5);
-      doc.setFont("helvetica", "normal");
-      doc.text(s, cx + 5, cy + 19);
-    }
+  cards.forEach(({l,v,s},i) => {
+    const cx=M+(i%2)*(sw+4), cy=sy+Math.floor(i/2)*(sh+4);
+    doc.setFillColor(...DARK); doc.rect(cx,cy,sw,sh,"F");
+    doc.setFillColor(...COP); doc.rect(cx,cy,1,sh,"F");
+    doc.setTextColor(...DIM); doc.setFontSize(7); doc.setFont("helvetica","normal"); doc.text(l,cx+5,cy+6);
+    doc.setTextColor(...COP); doc.setFontSize(14); doc.setFont("helvetica","bold"); doc.text(v,cx+5,cy+14);
+    if(s){ doc.setTextColor(...FAINT); doc.setFontSize(6.5); doc.setFont("helvetica","normal"); doc.text(s,cx+5,cy+19); }
   });
 
   const secH = (title, sub) => {
     np();
-    doc.setFillColor(...COP);
-    doc.rect(0, 0, 1.5, PH, "F");
-    doc.setFillColor(...DARK);
-    doc.rect(0, 0, PW, 20, "F");
-    doc.setTextColor(...TXT);
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text(title, M + 4, 13);
-    doc.setTextColor(...DIM);
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.text(sub, M + 4, 19);
+    doc.setFillColor(...COP); doc.rect(0,0,1.5,PH,"F");
+    doc.setFillColor(...DARK); doc.rect(0,0,PW,20,"F");
+    doc.setTextColor(...TXT); doc.setFontSize(14); doc.setFont("helvetica","bold"); doc.text(title,M+4,13);
+    doc.setTextColor(...DIM); doc.setFontSize(8); doc.setFont("helvetica","normal"); doc.text(sub,M+4,19);
     y = 28;
   };
-
   const th = (cols, ws, ry) => {
-    doc.setFillColor(...LINE);
-    doc.rect(M, ry, CW, 6, "F");
-    let x = M + 3;
-    cols.forEach((c, i) => {
-      doc.setTextColor(...DIM);
-      doc.setFontSize(7);
-      doc.setFont("helvetica", "bold");
-      doc.text(c, x, ry + 4.2);
-      x += ws[i];
-    });
-    return ry + 6;
+    doc.setFillColor(...LINE); doc.rect(M,ry,CW,6,"F");
+    let x=M+3;
+    cols.forEach((c,i) => { doc.setTextColor(...DIM); doc.setFontSize(7); doc.setFont("helvetica","bold"); doc.text(c,x,ry+4.2); x+=ws[i]; });
+    return ry+6;
   };
-
   const tr = (vals, ws, ry, zebra) => {
-    if (zebra) {
-      doc.setFillColor(16, 16, 20);
-      doc.rect(M, ry, CW, 6, "F");
-    }
-    let x = M + 3;
-    vals.forEach((v, i) => {
-      doc.setTextColor(...TXT);
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "normal");
-      doc.text(String(v ?? "-"), x, ry + 4.2);
-      x += ws[i];
-    });
-    return ry + 6;
+    if(zebra){ doc.setFillColor(16,16,20); doc.rect(M,ry,CW,6,"F"); }
+    let x=M+3;
+    vals.forEach((v,i) => { doc.setTextColor(...TXT); doc.setFontSize(8); doc.setFont("helvetica","normal"); doc.text(String(v??"-"),x,ry+4.2); x+=ws[i]; });
+    return ry+6;
   };
 
-  if (sections.includes("bp") && bpReadings.length > 0) {
-    secH("BLOOD PRESSURE", bpReadings.length + " READINGS");
+  if (sections.includes("bp") && bpReadings.length>0) {
+    secH("BLOOD PRESSURE", bpReadings.length+" READINGS");
     if (bpAvg) {
-      const cat = getBP(bpAvg.s, bpAvg.d);
-      doc.setFillColor(...DARK);
-      doc.rect(M, y, CW, 14, "F");
-      doc.setFillColor(...COP);
-      doc.rect(M, y, 1, 14, "F");
-      doc.setTextColor(...DIM);
-      doc.setFontSize(7);
-      doc.text("7-DAY AVERAGE", M + 4, y + 5);
-      doc.setTextColor(...COP);
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text(bpAvg.s + "/" + bpAvg.d, M + 4, y + 12);
-      doc.setTextColor(...TXT);
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "normal");
-      doc.text(cat.label, M + 36, y + 12);
+      const cat = getBP(bpAvg.s,bpAvg.d);
+      doc.setFillColor(...DARK); doc.rect(M,y,CW,14,"F");
+      doc.setFillColor(...COP); doc.rect(M,y,1,14,"F");
+      doc.setTextColor(...DIM); doc.setFontSize(7); doc.text("7-DAY AVERAGE",M+4,y+5);
+      doc.setTextColor(...COP); doc.setFontSize(14); doc.setFont("helvetica","bold"); doc.text(bpAvg.s+"/"+bpAvg.d,M+4,y+12);
+      doc.setTextColor(...TXT); doc.setFontSize(8); doc.text(cat.label,M+36,y+12);
       y += 18;
     }
-    y = th(["DATE", "SYSTOLIC", "DIASTOLIC", "PULSE", "STATUS", "NOTES"], [32, 22, 24, 18, 22, 60], y);
-    doc.setDrawColor(...LINE);
-    doc.line(M, y, PW - M, y);
-    bpReadings.forEach((r, i) => {
+    y = th(["DATE","SYSTOLIC","DIASTOLIC","PULSE","STATUS","NOTES"],[32,22,24,18,22,60],y);
+    doc.setDrawColor(...LINE); doc.line(M,y,PW-M,y);
+    bpReadings.forEach((r,i) => {
       chk();
-      const cat = getBP(r.systolic, r.diastolic);
-      y = tr([fmtDate(r.date), r.systolic, r.diastolic, r.pulse || "-", cat.label, r.notes || ""], [32, 22, 24, 18, 22, 60], y, i % 2 === 1);
+      const cat = getBP(r.systolic,r.diastolic);
+      y = tr([fmtDate(r.date),r.systolic,r.diastolic,r.pulse||"-",cat.label,r.notes||""],[32,22,24,18,22,60],y,i%2===1);
     });
   }
 
   if (sections.includes("drink")) {
-    const e = Object.entries(drinkLog)
-      .filter(([, v]) => v > 0)
-      .sort(([a], [b]) => b.localeCompare(a));
-    if (e.length > 0) {
-      secH("DRINKING LOG", e.length + " DAYS LOGGED");
-      y = th(["DATE", "DRINKS", "DAILY GOAL", "STATUS"], [40, 26, 30, CW - 96], y);
-      doc.setDrawColor(...LINE);
-      doc.line(M, y, PW - M, y);
-      e.forEach(([date, cnt], i) => {
+    const e = Object.entries(drinkLog).filter(([,v])=>v>0).sort(([a],[b])=>b.localeCompare(a));
+    if (e.length>0) {
+      secH("DRINKING LOG", e.length+" DAYS LOGGED");
+      y = th(["DATE","DRINKS","DAILY GOAL","STATUS"],[40,26,30,CW-96],y);
+      doc.setDrawColor(...LINE); doc.line(M,y,PW-M,y);
+      e.forEach(([date,cnt],i) => {
         chk();
-        y = tr([fmtDate(date), cnt, drinkGoals.daily, cnt > drinkGoals.daily ? "OVER" : "ON TRACK"], [40, 26, 30, CW - 96], y, i % 2 === 1);
+        y = tr([fmtDate(date),cnt,drinkGoals.daily,cnt>drinkGoals.daily?"OVER":"ON TRACK"],[40,26,30,CW-96],y,i%2===1);
       });
     }
   }
 
   if (sections.includes("sleep")) {
-    const e = Object.entries(sleepLog).sort(([a], [b]) => b.localeCompare(a));
-    if (e.length > 0) {
-      secH("SLEEP LOG", e.length + " NIGHTS LOGGED");
-      y = th(["DATE", "BED", "WAKE", "HRS", "QUALITY", "WAKEUPS", "NOTES"], [28, 18, 18, 16, 18, 18, 66], y);
-      doc.setDrawColor(...LINE);
-      doc.line(M, y, PW - M, y);
-      e.forEach(([date, rec], i) => {
+    const e = Object.entries(sleepLog).sort(([a],[b])=>b.localeCompare(a));
+    if (e.length>0) {
+      secH("SLEEP LOG", e.length+" NIGHTS LOGGED");
+      y = th(["DATE","BED","WAKE","HRS","QUALITY","WAKEUPS","NOTES"],[28,18,18,16,18,18,66],y);
+      doc.setDrawColor(...LINE); doc.line(M,y,PW-M,y);
+      e.forEach(([date,rec],i) => {
         chk();
-        y = tr(
-          [fmtDate(date), rec.bedtime || "-", rec.waketime || "-", rec.hours ? rec.hours + "h" : "-", rec.quality != null ? rec.quality + "/10" : "-", rec.wakeups || 0, rec.notes || ""],
-          [28, 18, 18, 16, 18, 18, 66],
-          y,
-          i % 2 === 1
-        );
+        y = tr([fmtDate(date),rec.bedtime||"-",rec.waketime||"-",rec.hours?rec.hours+"h":"-",rec.quality?rec.quality+"/10":"-",rec.wakeups||0,rec.notes||""],[28,18,18,16,18,18,66],y,i%2===1);
       });
     }
   }
 
   if (sections.includes("exercise")) {
-    const ss = Object.entries(exLog)
-      .filter(([, v]) => Object.values(v).some((x) => x && x !== "0" && x !== ""))
-      .sort(([a], [b]) => b.localeCompare(a));
-    if (ss.length > 0) {
-      secH("EXERCISE LOG", ss.length + " SESSIONS");
-      exercises.forEach((ex) => {
-        const vals = ss.map(([, log]) => parseFloat(log[ex.id] || 0)).filter((v) => v > 0);
+    const ss = Object.entries(exLog).filter(([,v])=>Object.values(v).some(x=>x&&x!=="0"&&x!=="")).sort(([a],[b])=>b.localeCompare(a));
+    if (ss.length>0) {
+      secH("EXERCISE LOG", ss.length+" SESSIONS");
+      exercises.forEach(ex => {
+        const vals = ss.map(([,log]) => parseFloat(log[ex.id]||0)).filter(v=>v>0);
         if (!vals.length) return;
-        const tot = vals.reduce((a, v) => a + v, 0),
-          best = Math.max(...vals),
-          u = ex.type === "reps" ? "REPS" : "MIN";
+        const tot = vals.reduce((a,v)=>a+v,0), best = Math.max(...vals), u = ex.type==="reps"?"REPS":"MIN";
         chk(10);
-        doc.setFillColor(...DARK);
-        doc.rect(M, y, CW, 8, "F");
-        doc.setFillColor(...COP);
-        doc.rect(M, y, 1, 8, "F");
-        doc.setTextColor(...TXT);
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "bold");
-        doc.text(ex.name.toUpperCase(), M + 4, y + 5.5);
-        doc.setTextColor(...DIM);
-        doc.setFontSize(7.5);
-        doc.setFont("helvetica", "normal");
-        doc.text(`TOTAL ${tot} ${u}  ·  BEST ${best} ${u}  ·  ${vals.length} SESSIONS`, M + 50, y + 5.5);
+        doc.setFillColor(...DARK); doc.rect(M,y,CW,8,"F");
+        doc.setFillColor(...COP); doc.rect(M,y,1,8,"F");
+        doc.setTextColor(...TXT); doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.text(ex.name.toUpperCase(),M+4,y+5.5);
+        doc.setTextColor(...DIM); doc.setFontSize(7.5); doc.setFont("helvetica","normal");
+        doc.text("TOTAL "+tot+" "+u+"  ·  BEST "+best+" "+u+"  ·  "+vals.length+" SESSIONS", M+50,y+5.5);
         y += 10;
       });
-
       y += 4;
-      ss.forEach(([date, log]) => {
-        const done = exercises.filter((e) => log[e.id] && log[e.id] !== "0" && log[e.id] !== "");
+      ss.forEach(([date,log]) => {
+        const done = exercises.filter(e=>log[e.id]&&log[e.id]!=="0"&&log[e.id]!=="");
         if (!done.length) return;
-        chk(8 + done.length * 6);
-        doc.setFillColor(...LINE);
-        doc.rect(M, y, CW, 6, "F");
-        doc.setTextColor(...TXT);
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "bold");
-        doc.text(fmtDate(date).toUpperCase(), M + 4, y + 4.2);
+        chk(8+done.length*6);
+        doc.setFillColor(...LINE); doc.rect(M,y,CW,6,"F");
+        doc.setTextColor(...TXT); doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.text(fmtDate(date).toUpperCase(),M+4,y+4.2);
         y += 6;
-
-        done.forEach((ex, i) => {
+        done.forEach((ex,i) => {
           chk();
-          if (i % 2 === 1) {
-            doc.setFillColor(16, 16, 20);
-            doc.rect(M, y, CW, 5.5, "F");
-          }
-          doc.setTextColor(...DIM);
-          doc.setFontSize(7.5);
-          doc.setFont("helvetica", "normal");
-          doc.text("  " + ex.name, M + 4, y + 4);
-          doc.setTextColor(111, 207, 151);
-          doc.setFont("helvetica", "bold");
-          doc.text(log[ex.id] + " " + (ex.type === "reps" ? "REPS" : "MIN"), M + 60, y + 4);
+          if(i%2===1){ doc.setFillColor(16,16,20); doc.rect(M,y,CW,5.5,"F"); }
+          doc.setTextColor(...DIM); doc.setFontSize(7.5); doc.setFont("helvetica","normal"); doc.text("  "+ex.name,M+4,y+4);
+          doc.setTextColor(111,207,151); doc.setFont("helvetica","bold"); doc.text(log[ex.id]+" "+(ex.type==="reps"?"REPS":"MIN"),M+60,y+4);
           y += 5.5;
         });
         y += 3;
@@ -879,38 +531,33 @@ async function buildPDF(sections, data) {
   }
 
   const tot = doc.getNumberOfPages();
-  for (let i = 1; i <= tot; i++) {
+  for (let i=1; i<=tot; i++) {
     doc.setPage(i);
-    doc.setFillColor(12, 12, 14);
-    doc.rect(0, PH - 8, PW, 8, "F");
-    doc.setDrawColor(...LINE);
-    doc.setLineWidth(0.2);
-    doc.line(M, PH - 8, PW - M, PH - 8);
-    doc.setTextColor(...FAINT);
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "normal");
-    doc.text("HEALTH REPORT", M, PH - 3);
-    doc.text(i + " / " + tot, PW - M - 10, PH - 3);
-    doc.text(new Date().toLocaleDateString("en-US").toUpperCase(), PW / 2 - 10, PH - 3);
+    doc.setFillColor(12,12,14); doc.rect(0,PH-8,PW,8,"F");
+    doc.setDrawColor(...LINE); doc.setLineWidth(0.2); doc.line(M,PH-8,PW-M,PH-8);
+    doc.setTextColor(...FAINT); doc.setFontSize(7); doc.setFont("helvetica","normal");
+    doc.text("HEALTH REPORT",M,PH-3);
+    doc.text(i+" / "+tot,PW-M-10,PH-3);
+    doc.text(new Date().toLocaleDateString("en-US").toUpperCase(),PW/2-10,PH-3);
   }
 
-  doc.save("health-report-" + todayStr() + ".pdf");
+  doc.save("health-report-"+todayStr()+".pdf");
 }
 
 // ─── Export Modal ─────────────────────────────────────────────────────────────
 function ExportModal({ onClose, data }) {
-  const [sel, setSel] = useState(["bp", "drink", "sleep", "exercise"]);
+  const [sel, setSel] = useState(["bp","drink","sleep","exercise"]);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
 
   const OPTS = [
-    { id: "bp", label: "Blood Pressure", count: data.bpReadings.length + " readings" },
-    { id: "drink", label: "Drinking", count: Object.values(data.drinkLog).filter((v) => v > 0).length + " days" },
-    { id: "sleep", label: "Sleep", count: Object.keys(data.sleepLog).length + " nights" },
-    { id: "exercise", label: "Exercise", count: Object.entries(data.exLog).filter(([, v]) => Object.values(v).some((x) => x && x !== "0" && x !== "")).length + " sessions" },
+    { id:"bp",       label:"Blood Pressure", count: data.bpReadings.length+" readings" },
+    { id:"drink",    label:"Drinking",        count: Object.values(data.drinkLog).filter(v=>v>0).length+" days" },
+    { id:"sleep",    label:"Sleep",           count: Object.keys(data.sleepLog).length+" nights" },
+    { id:"exercise", label:"Exercise",        count: Object.entries(data.exLog).filter(([,v])=>Object.values(v).some(x=>x&&x!=="0"&&x!=="")).length+" sessions" },
   ];
 
-  const toggle = (id) => setSel((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  const toggle = id => setSel(p => p.includes(id) ? p.filter(x=>x!==id) : [...p,id]);
 
   const go = async () => {
     if (!sel.length) return;
@@ -918,81 +565,59 @@ function ExportModal({ onClose, data }) {
     try {
       await buildPDF(sel, data);
       setDone(true);
-      setBusy(false);
-      setTimeout(() => {
-        setDone(false);
-        onClose();
-      }, 1200);
-    } catch (e) {
-      console.error(e);
-      setBusy(false);
-    }
+      setTimeout(() => { setDone(false); onClose(); }, 2000);
+    } catch(e) { console.error(e); setBusy(false); }
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(8,8,10,0.92)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div style={{ background: C.bgCard, border: "1px solid " + C.line2, borderRadius: 6, padding: 28, maxWidth: 360, width: "100%", boxShadow: "0 32px 100px rgba(0,0,0,0.7)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+    <div style={{position:"fixed",inset:0,background:"rgba(8,8,10,0.92)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:C.bgCard,border:"1px solid "+C.line2,borderRadius:6,padding:28,maxWidth:360,width:"100%",boxShadow:"0 32px 100px rgba(0,0,0,0.7)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:24}}>
           <div>
-            <div style={{ fontSize: 9, letterSpacing: 3, color: C.copper, fontWeight: 700, textTransform: "uppercase", marginBottom: 8 }}>Export</div>
-            <div style={{ fontFamily: C.fontSerif, fontSize: 22, fontWeight: 600, color: C.text, letterSpacing: 0.5 }}>Health Report PDF</div>
+            <div style={{fontSize:9,letterSpacing:3,color:C.copper,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>Export</div>
+            <div style={{fontFamily:C.fontSerif,fontSize:22,fontWeight:600,color:C.text,letterSpacing:0.5}}>Health Report PDF</div>
           </div>
-          <button onClick={onClose} style={{ background: "transparent", border: "1px solid " + C.line2, borderRadius: 3, color: C.dim, width: 32, height: 32, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: C.fontSans }}>
-            ✕
-          </button>
+          <button onClick={onClose} style={{background:"transparent",border:"1px solid "+C.line2,borderRadius:3,color:C.dim,width:32,height:32,cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:C.fontSans}}>✕</button>
         </div>
 
         <Rule label="sections" />
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-          {OPTS.map((o) => {
+        <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
+          {OPTS.map(o => {
             const on = sel.includes(o.id);
             return (
-              <button
-                key={o.id}
-                onClick={() => toggle(o.id)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 14,
-                  background: on ? C.copperBg : C.bgRaise,
-                  border: "1px solid " + (on ? C.copperLo : C.line),
-                  borderRadius: 4,
-                  padding: "12px 16px",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  fontFamily: C.fontSans,
-                  transition: "all 0.15s",
-                }}
-              >
-                <div style={{ width: 18, height: 18, borderRadius: 2, border: "1.5px solid " + (on ? C.copper : C.line2), background: on ? C.copper : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" }}>
-                  {on && <span style={{ color: "#0c0c0e", fontSize: 11, fontWeight: 900, lineHeight: 1 }}>✓</span>}
+              <button key={o.id} onClick={() => toggle(o.id)} style={{
+                display:"flex",alignItems:"center",gap:14,
+                background: on ? C.copperBg : C.bgRaise,
+                border:"1px solid " + (on ? C.copperLo : C.line),
+                borderRadius:4,padding:"12px 16px",cursor:"pointer",
+                textAlign:"left",fontFamily:C.fontSans,transition:"all 0.15s",
+              }}>
+                <div style={{width:18,height:18,borderRadius:2,border:"1.5px solid "+(on?C.copper:C.line2),background:on?C.copper:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s"}}>
+                  {on && <span style={{color:"#0c0c0e",fontSize:11,fontWeight:900,lineHeight:1}}>✓</span>}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: on ? C.text : C.dim, letterSpacing: 0.3 }}>{o.label}</div>
-                  <div style={{ fontSize: 10, color: C.faint, marginTop: 2, letterSpacing: 0.5 }}>{o.count}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:14,fontWeight:600,color:on?C.text:C.dim,letterSpacing:0.3}}>{o.label}</div>
+                  <div style={{fontSize:10,color:C.faint,marginTop:2,letterSpacing:0.5}}>{o.count}</div>
                 </div>
               </button>
             );
           })}
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-          <button
-            onClick={() => setSel(sel.length === 4 ? [] : ["bp", "drink", "sleep", "exercise"])}
-            style={{ background: "none", border: "none", color: C.dim, fontSize: 11, cursor: "pointer", fontFamily: C.fontSans, letterSpacing: 0.5, padding: 0 }}
-          >
-            {sel.length === 4 ? "Deselect all" : "Select all"}
+        <div style={{display:"flex",justifyContent:"flex-end",marginBottom:16}}>
+          <button onClick={() => setSel(sel.length===4?[]:["bp","drink","sleep","exercise"])} style={{background:"none",border:"none",color:C.dim,fontSize:11,cursor:"pointer",fontFamily:C.fontSans,letterSpacing:0.5,padding:0}}>
+            {sel.length===4 ? "Deselect all" : "Select all"}
           </button>
         </div>
 
         {done ? (
-          <div style={{ background: "rgba(111,207,151,0.08)", border: "1px solid " + C.green, borderRadius: 4, padding: 14, textAlign: "center", color: C.green, fontWeight: 700, fontSize: 12, letterSpacing: 2, textTransform: "uppercase" }}>
+          <div style={{background:"rgba(111,207,151,0.08)",border:"1px solid "+C.green,borderRadius:4,padding:14,textAlign:"center",color:C.green,fontWeight:700,fontSize:12,letterSpacing:2,textTransform:"uppercase"}}>
             ↓ Downloaded
           </div>
         ) : (
-          <PrimaryBtn disabled={sel.length === 0 || busy} onClick={go}>
-            {busy ? "Generating…" : "Export " + sel.length + " Section" + (sel.length !== 1 ? "s" : "")}
+          <PrimaryBtn disabled={sel.length===0||busy} onClick={go}>
+            {busy ? "Generating…" : "Export "+sel.length+" Section"+(sel.length!==1?"s":"")}
           </PrimaryBtn>
         )}
       </div>
@@ -1006,1185 +631,493 @@ function ExportModal({ onClose, data }) {
 export default function App() {
   useFont();
 
-  const [tab, setTab] = useState("dash");
-  const [confirm, setConfirm] = useState(null);
-  const [exModal, setExModal] = useState(false);
+  const [tab,     setTab]    = useState("dash");
+  const [confirm, setConfirm]= useState(null);
+  const [exModal, setExModal]= useState(false);
 
-  const [bpList, setBpList] = useState(() => load("hp-bp", []));
-  const [bpForm, setBpForm] = useState({ systolic: "", diastolic: "", pulse: "", notes: "", date: todayStr() });
+  const [bpList,  setBpList] = useState(() => load("hp-bp", []));
+  const [bpForm,  setBpForm] = useState({ systolic:"",diastolic:"",pulse:"",notes:"",date:todayStr() });
 
-  const [drinks, setDrinks] = useState(() => load("hp-drinks", {}));
-  const [goals, setGoals] = useState(() => load("hp-goals", { daily: 2, weekly: 14 }));
-  const [goalEdit, setGE] = useState(false);
-  const [goalForm, setGF] = useState({ daily: "", weekly: "" });
+  const [drinks,  setDrinks] = useState(() => load("hp-drinks", {}));
+  const [goals,   setGoals]  = useState(() => load("hp-goals",  { daily:2, weekly:14 }));
+  const [goalEdit,setGE]     = useState(false);
+  const [goalForm,setGF]     = useState({ daily:"", weekly:"" });
 
-  const [sleepLog, setSleep] = useState(() => load("hp-sleep", {}));
-  const [sleepF, setSleepF] = useState({ date: todayStr(), bedtime: "22:00", waketime: "06:30", wakeups: 0, quality: 7, notes: "" });
+  const [sleepLog,setSleep]  = useState(() => load("hp-sleep", {}));
+  const [sleepF,  setSleepF] = useState({ date:todayStr(),bedtime:"22:00",waketime:"06:30",wakeups:0,quality:7,notes:"" });
 
-  const [exTypes, setExTypes] = useState(() => load("hp-extypes", [{ id: 1, name: "Push-ups", type: "reps" }, { id: 2, name: "Sit-ups", type: "reps" }, { id: 3, name: "Running", type: "time" }]));
-  const [exLog, setExLog] = useState(() => load("hp-exlog", {}));
-  const [exDate, setExDate] = useState(todayStr());
-  const [newEx, setNewEx] = useState({ name: "", type: "reps" });
+  const [exTypes, setExTypes]= useState(() => load("hp-extypes",[{id:1,name:"Push-ups",type:"reps"},{id:2,name:"Sit-ups",type:"reps"},{id:3,name:"Running",type:"time"}]));
+  const [exLog,   setExLog]  = useState(() => load("hp-exlog", {}));
+  const [exDate,  setExDate] = useState(todayStr());
+  const [newEx,   setNewEx]  = useState({ name:"", type:"reps" });
 
-  useEffect(() => persist("hp-bp", bpList), [bpList]);
-  useEffect(() => persist("hp-drinks", drinks), [drinks]);
-  useEffect(() => persist("hp-goals", goals), [goals]);
-  useEffect(() => persist("hp-sleep", sleepLog), [sleepLog]);
-  useEffect(() => persist("hp-extypes", exTypes), [exTypes]);
-  useEffect(() => persist("hp-exlog", exLog), [exLog]);
+  useEffect(() => persist("hp-bp",     bpList),  [bpList]);
+  useEffect(() => persist("hp-drinks", drinks),  [drinks]);
+  useEffect(() => persist("hp-goals",  goals),   [goals]);
+  useEffect(() => persist("hp-sleep",  sleepLog),[sleepLog]);
+  useEffect(() => persist("hp-extypes",exTypes), [exTypes]);
+  useEffect(() => persist("hp-exlog",  exLog),   [exLog]);
 
   const ask = (msg, fn) => setConfirm({ msg, fn });
 
-  const today = todayStr();
-  const todayDrinks = drinks[today] || 0;
-  const weekDrinks = last7().reduce((s, d) => s + (drinks[d] || 0), 0);
+  const today        = todayStr();
+  const todayDrinks  = drinks[today] || 0;
+  const weekDrinks   = last7().reduce((s,d) => s+(drinks[d]||0), 0);
 
   // Computed averages
   const bpAvg = (() => {
-    const r = bpList.slice(0, 7);
+    const r = bpList.slice(0,7);
     if (!r.length) return null;
-    return { s: Math.round(r.reduce((a, x) => a + x.systolic, 0) / r.length), d: Math.round(r.reduce((a, x) => a + x.diastolic, 0) / r.length) };
+    return { s: Math.round(r.reduce((a,x)=>a+x.systolic,0)/r.length), d: Math.round(r.reduce((a,x)=>a+x.diastolic,0)/r.length) };
   })();
-
   const slAvg = (() => {
-    const v = last7().map((d) => sleepLog[d]?.hours).filter(Boolean);
+    const v = last7().map(d => sleepLog[d]?.hours).filter(Boolean);
     if (!v.length) return null;
-    return (v.reduce((a, x) => a + x, 0) / v.length).toFixed(1);
+    return (v.reduce((a,x)=>a+x,0)/v.length).toFixed(1);
   })();
-
   const qAvg = (() => {
-    const v = last7().map((d) => sleepLog[d]?.quality).filter((x) => x != null);
+    const v = last7().map(d => sleepLog[d]?.quality).filter(x=>x!=null);
     if (!v.length) return null;
-    return (v.reduce((a, x) => a + x, 0) / v.length).toFixed(1);
+    return (v.reduce((a,x)=>a+x,0)/v.length).toFixed(1);
   })();
 
   // BP
   const addBP = () => {
-    const s = parseInt(bpForm.systolic);
-    const d = parseInt(bpForm.diastolic);
-    if (!s || !d || s < 70 || s > 250 || d < 40 || d > 150) return;
-    setBpList((p) =>
-      [...p, { id: Date.now(), ...bpForm, systolic: s, diastolic: d, pulse: bpForm.pulse ? parseInt(bpForm.pulse) : null }].sort((a, b) => b.date.localeCompare(a.date))
-    );
-    setBpForm((f) => ({ ...f, systolic: "", diastolic: "", pulse: "", notes: "" }));
+    const s=parseInt(bpForm.systolic), d=parseInt(bpForm.diastolic);
+    if (!s||!d||s<70||s>250||d<40||d>150) return;
+    setBpList(p => [...p,{id:Date.now(),...bpForm,systolic:s,diastolic:d,pulse:bpForm.pulse?parseInt(bpForm.pulse):null}].sort((a,b)=>b.date.localeCompare(a.date)));
+    setBpForm(f => ({...f,systolic:"",diastolic:"",pulse:"",notes:""}));
   };
 
   // Sleep
   const addSleep = () => {
-    if (!sleepF.bedtime || !sleepF.waketime) return;
-    setSleep((p) => ({ ...p, [sleepF.date]: { ...sleepF, hours: calcHrs(sleepF.bedtime, sleepF.waketime) } }));
-    setSleepF((f) => ({ ...f, wakeups: 0, quality: 7, notes: "", date: todayStr() }));
+    if (!sleepF.bedtime||!sleepF.waketime) return;
+    setSleep(p => ({...p,[sleepF.date]:{...sleepF,hours:calcHrs(sleepF.bedtime,sleepF.waketime)}}));
+    setSleepF(f => ({...f,wakeups:0,quality:7,notes:"",date:todayStr()}));
   };
 
   // Exercise
-  const getEV = (date, id) => (exLog[date] || {})[id] || "";
-  const setEV = (date, id, val) => setExLog((p) => ({ ...p, [date]: { ...(p[date] || {}), [id]: val } }));
-
+  const getEV = (date,id) => ((exLog[date]||{})[id]) || "";
+  const setEV = (date,id,val) => setExLog(p => ({...p,[date]:{...(p[date]||{}),[id]:val}}));
   const addExType = () => {
     if (!newEx.name.trim()) return;
-    setExTypes((p) => [...p, { id: Date.now(), name: newEx.name.trim(), type: newEx.type }]);
-    setNewEx({ name: "", type: "reps" });
+    setExTypes(p => [...p,{id:Date.now(),name:newEx.name.trim(),type:newEx.type}]);
+    setNewEx({ name:"", type:"reps" });
   };
 
-  const allData = { bpReadings: bpList, drinkLog: drinks, drinkGoals: goals, sleepLog, exercises: exTypes, exLog };
+  const allData = { bpReadings:bpList, drinkLog:drinks, drinkGoals:goals, sleepLog, exercises:exTypes, exLog };
 
-  const FL = { fontSize: 9, letterSpacing: 2.5, color: C.dim, fontWeight: 600, textTransform: "uppercase", marginBottom: 8, display: "block" };
+  // Shared input style
+  const IS = { ...inputStyle };
+  const FL = { fontSize:9,letterSpacing:2.5,color:C.dim,fontWeight:600,textTransform:"uppercase",marginBottom:8,display:"block" };
+
   const TABS = [
-    { id: "dash", label: "Overview" },
-    { id: "bp", label: "Blood Pressure" },
-    { id: "drink", label: "Drinking" },
-    { id: "sleep", label: "Sleep" },
-    { id: "exercise", label: "Exercise" },
+    { id:"dash",     label:"Overview" },
+    { id:"bp",       label:"Blood Pressure" },
+    { id:"drink",    label:"Drinking" },
+    { id:"sleep",    label:"Sleep" },
+    { id:"exercise", label:"Exercise" },
   ];
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, color: C.text, fontFamily: C.fontSans, paddingBottom: 80 }}>
+    <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:C.fontSans,paddingBottom:80}}>
       <Styles />
 
       {confirm && <ConfirmDialog msg={confirm.msg} onYes={() => { confirm.fn(); setConfirm(null); }} onNo={() => setConfirm(null)} />}
       {exModal && <ExportModal onClose={() => setExModal(false)} data={allData} />}
 
-      {/* Header */}
-      <div style={{ background: C.bgCard, borderBottom: "1px solid " + C.line, padding: "0 18px", position: "sticky", top: 0, zIndex: 50 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 14, paddingBottom: 12, borderBottom: "1px solid " + C.line }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-            <span style={{ fontFamily: C.fontSerif, fontSize: 22, fontWeight: 700, color: C.text, letterSpacing: 1 }}>Health</span>
-            <span style={{ width: 5, height: 5, borderRadius: "50%", background: C.copper, display: "inline-block", marginBottom: 3, boxShadow: "0 0 6px " + C.copper }} />
+      {/* ── Header ── */}
+      <div style={{background:C.bgCard,borderBottom:"1px solid "+C.line,padding:"0 18px",position:"sticky",top:0,zIndex:50}}>
+
+        {/* Brand + export */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:14,paddingBottom:12,borderBottom:"1px solid "+C.line}}>
+          <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+            <span style={{fontFamily:C.fontSerif,fontSize:22,fontWeight:700,color:C.text,letterSpacing:1}}>Health</span>
+            <span style={{width:5,height:5,borderRadius:"50%",background:C.copper,display:"inline-block",marginBottom:3,boxShadow:"0 0 6px "+C.copper}} />
           </div>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <span style={{ fontFamily: C.fontMono, fontSize: 10, color: C.faint, letterSpacing: 1 }}>{today}</span>
-            <button
-              onClick={() => setExModal(true)}
-              className="press"
-              style={{ background: C.copperBg, border: "1px solid " + C.copperLo, borderRadius: 3, color: C.copper, padding: "6px 12px", cursor: "pointer", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", fontFamily: C.fontSans }}
-            >
+          <div style={{display:"flex",gap:10,alignItems:"center"}}>
+            <span style={{fontFamily:C.fontMono,fontSize:10,color:C.faint,letterSpacing:1}}>{today}</span>
+            <button onClick={() => setExModal(true)} className="press" style={{background:C.copperBg,border:"1px solid "+C.copperLo,borderRadius:3,color:C.copper,padding:"6px 12px",cursor:"pointer",fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",fontFamily:C.fontSans}}>
               ↓ Export
             </button>
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", padding: "10px 0" }}>
+        {/* Quick stats strip */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",padding:"10px 0"}}>
           {[
-            { l: "BP", v: bpAvg ? bpAvg.s + "/" + bpAvg.d : "—", col: C.copper },
-            { l: "Drinks", v: String(todayDrinks), col: todayDrinks > goals.daily ? C.red : C.text },
-            { l: "Sleep", v: sleepLog[today]?.hours ? sleepLog[today].hours + "h" : "—", col: C.text },
-            { l: "Quality", v: sleepLog[today]?.quality ? sleepLog[today].quality + "/10" : "—", col: C.green },
-          ].map((x, i) => (
-            <div key={x.l} style={{ textAlign: "center", padding: "4px 0", borderRight: i < 3 ? "1px solid " + C.line : "none" }}>
-              <div style={{ fontSize: 8, letterSpacing: 2.5, color: C.faint, textTransform: "uppercase", fontWeight: 600, marginBottom: 5 }}>{x.l}</div>
-              <div style={{ fontFamily: C.fontMono, fontSize: 14, fontWeight: 600, color: x.col }}>{x.v}</div>
+            { l:"BP",      v: bpAvg ? bpAvg.s+"/"+bpAvg.d : "—",                              col: C.copper },
+            { l:"Drinks",  v: String(todayDrinks),                                              col: todayDrinks>goals.daily ? C.red : C.text },
+            { l:"Sleep",   v: sleepLog[today]?.hours ? sleepLog[today].hours+"h" : "—",        col: C.text },
+            { l:"Quality", v: sleepLog[today]?.quality ? sleepLog[today].quality+"/10" : "—",  col: C.green },
+          ].map((x,i) => (
+            <div key={x.l} style={{textAlign:"center",padding:"4px 0",borderRight:i<3?"1px solid "+C.line:"none"}}>
+              <div style={{fontSize:8,letterSpacing:2.5,color:C.faint,textTransform:"uppercase",fontWeight:600,marginBottom:5}}>{x.l}</div>
+              <div style={{fontFamily:C.fontMono,fontSize:14,fontWeight:600,color:x.col}}>{x.v}</div>
             </div>
           ))}
         </div>
 
-        <div style={{ display: "flex", borderTop: "1px solid " + C.line, overflowX: "auto", scrollbarWidth: "none" }}>
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              style={{
-                background: "none",
-                border: "none",
-                borderBottom: "2px solid " + (tab === t.id ? C.copper : "transparent"),
-                color: tab === t.id ? C.text : C.dim,
-                padding: "11px 14px 10px",
-                fontSize: 11,
-                fontWeight: tab === t.id ? 600 : 400,
-                cursor: "pointer",
-                fontFamily: C.fontSans,
-                letterSpacing: 0.5,
-                whiteSpace: "nowrap",
-                transition: "color 0.2s",
-                flexShrink: 0,
-              }}
-            >
-              {t.label}
-            </button>
+        {/* Nav tabs */}
+        <div style={{display:"flex",borderTop:"1px solid "+C.line,overflowX:"auto",scrollbarWidth:"none"}}>
+          {TABS.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)} style={{
+              background:"none",border:"none",
+              borderBottom:"2px solid "+(tab===t.id ? C.copper : "transparent"),
+              color: tab===t.id ? C.text : C.dim,
+              padding:"11px 14px 10px",fontSize:11,
+              fontWeight: tab===t.id ? 600 : 400,
+              cursor:"pointer",fontFamily:C.fontSans,letterSpacing:0.5,
+              whiteSpace:"nowrap",transition:"color 0.2s",flexShrink:0,
+            }}>{t.label}</button>
           ))}
         </div>
       </div>
 
-      {/* Page content */}
-      <div style={{ padding: "20px 18px" }} className="fadeUp">
-        {/* DASH */}
-        {tab === "dash" && (
+      {/* ── Page content ── */}
+      <div style={{padding:"20px 18px"}} className="fadeUp">
+
+        {/* ══ DASHBOARD ══ */}
+        {tab==="dash" && (
           <div>
             <SectionHead title="Overview" sub="7-day health summary" />
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-              <StatTile label="Blood Pressure" value={bpAvg ? bpAvg.s + "/" + bpAvg.d : "No data"} sub={bpAvg ? getBP(bpAvg.s, bpAvg.d).label : "Add a reading"} color={C.copper} />
-              <StatTile label="Weekly Drinks" value={String(weekDrinks)} sub={"Goal: " + goals.weekly + " / week"} color={weekDrinks > goals.weekly ? C.red : C.text} />
-              <StatTile label="Avg Sleep" value={slAvg ? slAvg + "h" : "—"} sub="7-day average" color={C.green} />
-              <StatTile label="Sleep Quality" value={qAvg ? qAvg + "/10" : "—"} sub="7-day average" color={C.text} />
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+              <StatTile label="Blood Pressure" value={bpAvg ? bpAvg.s+"/"+bpAvg.d : "No data"} sub={bpAvg ? getBP(bpAvg.s,bpAvg.d).label : "Add a reading"} color={C.copper} />
+              <StatTile label="Weekly Drinks"  value={String(weekDrinks)} sub={"Goal: "+goals.weekly+" / week"} color={weekDrinks>goals.weekly?C.red:C.text} />
+              <StatTile label="Avg Sleep"      value={slAvg ? slAvg+"h" : "—"} sub="7-day average" color={C.green} />
+              <StatTile label="Sleep Quality"  value={qAvg ? qAvg+"/10" : "—"} sub="7-day average" color={C.text} />
             </div>
 
             <Card>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 16 }}>
-                <div style={{ fontSize: 10, letterSpacing: 2.5, color: C.dim, textTransform: "uppercase", fontWeight: 600 }}>Drinking — 7 Days</div>
-                <div style={{ fontFamily: C.fontMono, fontSize: 12, color: C.dim }}>
-                  {weekDrinks} / {goals.weekly}
-                </div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:16}}>
+                <div style={{fontSize:10,letterSpacing:2.5,color:C.dim,textTransform:"uppercase",fontWeight:600}}>Drinking — 7 Days</div>
+                <div style={{fontFamily:C.fontMono,fontSize:12,color:C.dim}}>{weekDrinks} / {goals.weekly}</div>
               </div>
-              <MiniChart values={last7().map((d) => drinks[d] || 0)} color={C.copper} overColor={C.red} threshold={goals.daily} dates={last7().map(dayLbl)} />
+              <MiniChart values={last7().map(d=>drinks[d]||0)} color={C.copper} overColor={C.red} threshold={goals.daily} dates={last7().map(dayLbl)} />
               <ProgressBar value={weekDrinks} max={goals.weekly} color={C.copper} />
             </Card>
 
             <Card>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 16 }}>
-                <div style={{ fontSize: 10, letterSpacing: 2.5, color: C.dim, textTransform: "uppercase", fontWeight: 600 }}>Sleep — 7 Days</div>
-                {slAvg && <div style={{ fontFamily: C.fontMono, fontSize: 12, color: C.dim }}>avg {slAvg}h</div>}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:16}}>
+                <div style={{fontSize:10,letterSpacing:2.5,color:C.dim,textTransform:"uppercase",fontWeight:600}}>Sleep — 7 Days</div>
+                {slAvg && <div style={{fontFamily:C.fontMono,fontSize:12,color:C.dim}}>avg {slAvg}h</div>}
               </div>
-              {last7().some((d) => sleepLog[d]) ? (
+              {last7().some(d=>sleepLog[d]) ? (
                 <>
-                  <MiniChart values={last7().map((d) => sleepLog[d]?.hours || 0)} color={C.green} dates={last7().map(dayLbl)} />
-                  <div style={{ display: "flex", gap: 5, marginTop: 10 }}>
-                    {last7().map((d, i) => (
-                      <div key={i} style={{ flex: 1, textAlign: "center", fontFamily: C.fontMono, fontSize: 9, color: sleepLog[d] ? C.dim : C.faint }}>
+                  <MiniChart values={last7().map(d=>sleepLog[d]?.hours||0)} color={C.green} max={9} dates={last7().map(dayLbl)} />
+                  <div style={{display:"flex",gap:5,marginTop:10}}>
+                    {last7().map((d,i) => (
+                      <div key={i} style={{flex:1,textAlign:"center",fontFamily:C.fontMono,fontSize:9,color:sleepLog[d]?C.dim:C.faint}}>
                         {sleepLog[d] ? sleepLog[d].hours : "-"}
                       </div>
                     ))}
                   </div>
                 </>
-              ) : (
-                <EmptyState msg="No sleep data yet" />
-              )}
+              ) : <EmptyState msg="No sleep data yet" />}
             </Card>
 
             <Card>
-              <div style={{ fontSize: 10, letterSpacing: 2.5, color: C.dim, textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>Recent Blood Pressure</div>
-              {bpList.length === 0 ? (
-                <EmptyState msg="No readings yet" />
-              ) : (
-                bpList.slice(0, 5).map((r) => {
-                  const cat = getBP(r.systolic, r.diastolic);
-                  return (
-                    <DataRow
-                      key={r.id}
-                      left={r.systolic + "/" + r.diastolic}
-                      sub={fmtDate(r.date) + (r.pulse ? " · ♥ " + r.pulse : "")}
-                      badge={cat}
-                    />
-                  );
-                })
-              )}
+              <div style={{fontSize:10,letterSpacing:2.5,color:C.dim,textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Recent Blood Pressure</div>
+              {bpList.length===0 ? <EmptyState msg="No readings yet" /> : bpList.slice(0,5).map(r => {
+                const cat = getBP(r.systolic,r.diastolic);
+                return <DataRow key={r.id} left={r.systolic+"/"+r.diastolic} sub={fmtDate(r.date)+(r.pulse?" · ♥ "+r.pulse:"")} badge={cat} />;
+              })}
             </Card>
 
             <Card>
-              <div
-                style={{
-                  fontSize: 10,
-                  letterSpacing: 2.5,
-                  color: C.dim,
-                  textTransform: "uppercase",
-                  fontWeight: 600,
-                  marginBottom: 4,
-                }}
-              >
-                Today's Exercise
-              </div>
-
+              <div style={{fontSize:10,letterSpacing:2.5,color:C.dim,textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Today's Exercise</div>
               {(() => {
-                const done = exTypes.filter((e) => {
-                  const v = getEV(today, e.id);
-                  return v && v !== "0" && v !== "";
-                });
-
-                return done.length === 0 ? (
-                  <EmptyState msg="Nothing logged today" />
-                ) : (
-                  done.map((e) => (
-                    <DataRow
-                      key={e.id}
-                      left={e.name}
-                      right={
-                        getEV(today, e.id) +
-                        " " +
-                        (e.type === "reps" ? "reps" : "min")
-                      }
-                      sub={e.type === "reps" ? "Repetitions" : "Duration"}
-                    />
-                  ))
-                );
+                const done = exTypes.filter(e => { const v=getEV(today,e.id); return v&&v!=="0"&&v!==""; });
+                return done.length===0 ? <EmptyState msg="Nothing logged today" />
+                  : done.map(e => <DataRow key={e.id} left={e.name} right={getEV(today,e.id)+" "+(e.type==="reps"?"reps":"min")} sub={e.type==="reps"?"Repetitions":"Duration"} />);
               })()}
             </Card>
 
-            <button
-              onClick={() => setExModal(true)}
-              className="press"
-              style={{
-                width: "100%",
-                background: "transparent",
-                border: "1px solid " + C.line2,
-                borderRadius: 4,
-                padding: "15px",
-                cursor: "pointer",
-                color: C.dim,
-                fontWeight: 600,
-                fontSize: 10,
-                fontFamily: C.fontSans,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 10,
-                letterSpacing: 2.5,
-                textTransform: "uppercase",
-                transition: "border-color 0.2s,color 0.2s",
-                marginTop: 4,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = C.copper;
-                e.currentTarget.style.color = C.copper;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = C.line2;
-                e.currentTarget.style.color = C.dim;
-              }}
-            >
-              ↓ Export Health Report
-            </button>
+            <button onClick={() => setExModal(true)} className="press" style={{
+              width:"100%",background:"transparent",border:"1px solid "+C.line2,borderRadius:4,
+              padding:"15px",cursor:"pointer",color:C.dim,fontWeight:600,fontSize:10,
+              fontFamily:C.fontSans,display:"flex",alignItems:"center",justifyContent:"center",
+              gap:10,letterSpacing:2.5,textTransform:"uppercase",transition:"border-color 0.2s,color 0.2s",marginTop:4,
+            }}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor=C.copper;e.currentTarget.style.color=C.copper;}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor=C.line2;e.currentTarget.style.color=C.dim;}}
+            >↓ Export Health Report</button>
           </div>
         )}
 
-        {/* BP */}
-        {tab === "bp" && (
+        {/* ══ BLOOD PRESSURE ══ */}
+        {tab==="bp" && (
           <div>
-            <SectionHead
-              title="Blood Pressure"
-              sub="Track systolic, diastolic & pulse"
-              action={<GhostBtn onClick={() => setExModal(true)}>↓ PDF</GhostBtn>}
-            />
-
+            <SectionHead title="Blood Pressure" sub="Track systolic, diastolic & pulse" action={<GhostBtn onClick={()=>setExModal(true)}>↓ PDF</GhostBtn>} />
             <Card accent>
-              <div
-                style={{
-                  fontSize: 10,
-                  letterSpacing: 2.5,
-                  color: C.dim,
-                  textTransform: "uppercase",
-                  fontWeight: 600,
-                  marginBottom: 16,
-                }}
-              >
-                New Reading
-              </div>
-
-              <div style={{ marginBottom: 14 }}>
+              <div style={{fontSize:10,letterSpacing:2.5,color:C.dim,textTransform:"uppercase",fontWeight:600,marginBottom:16}}>New Reading</div>
+              <div style={{marginBottom:14}}>
                 <label style={FL}>Date</label>
-                <Input
-                  type="date"
-                  value={bpForm.date}
-                  max={todayStr()}
-                  onChange={(e) =>
-                    setBpForm((f) => ({ ...f, date: e.target.value }))
-                  }
-                />
+                <Input type="date" value={bpForm.date} max={todayStr()} onChange={e=>setBpForm(f=>({...f,date:e.target.value}))} />
               </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr 1fr",
-                  gap: 10,
-                  marginBottom: 14,
-                }}
-              >
-                {[
-                  ["systolic", "Systolic", "120"],
-                  ["diastolic", "Diastolic", "80"],
-                  ["pulse", "Pulse", "72"],
-                ].map(([k, l, p]) => (
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
+                {[["systolic","Systolic","120"],["diastolic","Diastolic","80"],["pulse","Pulse","72"]].map(([k,l,p]) => (
                   <div key={k}>
                     <label style={FL}>{l}</label>
-                    <Input
-                      type="number"
-                      inputMode="numeric"
-                      style={{ textAlign: "center" }}
-                      value={bpForm[k]}
-                      placeholder={p}
-                      onChange={(e) =>
-                        setBpForm((f) => ({ ...f, [k]: e.target.value }))
-                      }
-                    />
+                    <Input type="number" inputMode="numeric" style={{textAlign:"center"}} value={bpForm[k]} placeholder={p} onChange={e=>setBpForm(f=>({...f,[k]:e.target.value}))} />
                   </div>
                 ))}
               </div>
-
-              <div style={{ marginBottom: 16 }}>
+              <div style={{marginBottom:16}}>
                 <label style={FL}>Notes</label>
-                <Input
-                  type="text"
-                  value={bpForm.notes}
-                  placeholder="Morning reading, post-exercise…"
-                  onChange={(e) =>
-                    setBpForm((f) => ({ ...f, notes: e.target.value }))
-                  }
-                />
+                <Input type="text" value={bpForm.notes} placeholder="Morning reading, post-exercise…" onChange={e=>setBpForm(f=>({...f,notes:e.target.value}))} />
               </div>
-
               <PrimaryBtn onClick={addBP}>Record Reading</PrimaryBtn>
             </Card>
 
-            <Rule label={bpList.length + " readings"} />
-
-            {bpList.length === 0 ? (
-              <EmptyState msg="No readings recorded yet" />
-            ) : (
-              bpList.map((r) => {
-                const cat = getBP(r.systolic, r.diastolic);
-                return (
-                  <DataRow
-                    key={r.id}
-                    left={r.systolic + "/" + r.diastolic}
-                    sub={
-                      fmtDate(r.date) +
-                      (r.notes ? " — " + r.notes : "") +
-                      (r.pulse ? " · ♥ " + r.pulse : "")
-                    }
-                    badge={cat}
-                    onDelete={() =>
-                      ask("Remove this reading?", () =>
-                        setBpList((p) => p.filter((x) => x.id !== r.id))
-                      )
-                    }
-                  />
-                );
-              })
-            )}
-          </div>
-        )}
-
-        {/* DRINK */}
-        {tab === "drink" && (
-          <div>
-            <SectionHead
-              title="Drinking"
-              sub="Daily intake & weekly targets"
-              action={<GhostBtn onClick={() => setExModal(true)}>↓ PDF</GhostBtn>}
-            />
-
-            <Card accent>
-              <TapCounter
-                value={todayDrinks}
-                onChange={(v) => setDrinks((p) => ({ ...p, [today]: v }))}
-                color={C.copper}
-              />
-              <ProgressBar value={todayDrinks} max={goals.daily} color={C.copper} />
-            </Card>
-
             <Card>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-end",
-                  marginBottom: 16,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 10,
-                    letterSpacing: 2.5,
-                    color: C.dim,
-                    textTransform: "uppercase",
-                    fontWeight: 600,
-                  }}
-                >
-                  This Week
-                </div>
-
-                <div
-                  style={{
-                    fontFamily: C.fontMono,
-                    fontSize: 20,
-                    fontWeight: 600,
-                    color: weekDrinks > goals.weekly ? C.red : C.copper,
-                  }}
-                >
-                  {weekDrinks}
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: C.faint,
-                      fontWeight: 400,
-                    }}
-                  >
-                    {" "}
-                    / {goals.weekly}
-                  </span>
-                </div>
-              </div>
-
-              <MiniChart
-                values={last7().map((d) => drinks[d] || 0)}
-                color={C.copper}
-                overColor={C.red}
-                threshold={goals.daily}
-                dates={last7().map(dayLbl)}
-              />
-
-              <div
-                style={{
-                  marginTop: 10,
-                  fontSize: 11,
-                  color: weekDrinks > goals.weekly ? C.red : C.green,
-                  fontWeight: 600,
-                  letterSpacing: 0.5,
-                  textAlign: "right",
-                }}
-              >
-                {weekDrinks > goals.weekly
-                  ? weekDrinks - goals.weekly + " over weekly goal"
-                  : goals.weekly - weekDrinks + " remaining this week"}
-              </div>
-            </Card>
-
-            <Card>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: goalEdit ? 16 : 0,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 10,
-                    letterSpacing: 2.5,
-                    color: C.dim,
-                    textTransform: "uppercase",
-                    fontWeight: 600,
-                  }}
-                >
-                  Targets
-                </div>
-
-                <GhostBtn
-                  onClick={() => setGE((s) => !s)}
-                  style={{ padding: "6px 12px", fontSize: 9 }}
-                >
-                  {goalEdit ? "Cancel" : "Edit"}
-                </GhostBtn>
-              </div>
-
-              {goalEdit ? (
-                <div style={{ marginTop: 16 }}>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: 12,
-                      marginBottom: 14,
-                    }}
-                  >
-                    {[
-                      ["daily", "Daily max"],
-                      ["weekly", "Weekly max"],
-                    ].map(([k, l]) => (
-                      <div key={k}>
-                        <label style={FL}>{l}</label>
-                        <Input
-                          type="number"
-                          inputMode="numeric"
-                          style={{ textAlign: "center" }}
-                          value={goalForm[k] || goals[k]}
-                          onChange={(e) =>
-                            setGF((f) => ({ ...f, [k]: e.target.value }))
-                          }
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  <PrimaryBtn
-                    onClick={() => {
-                      const d = parseInt(goalForm.daily || goals.daily);
-                      const w = parseInt(goalForm.weekly || goals.weekly);
-                      if (d && w) {
-                        setGoals({ daily: d, weekly: w });
-                        setGE(false);
-                      }
-                    }}
-                  >
-                    Save Targets
-                  </PrimaryBtn>
-                </div>
-              ) : (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 12,
-                    marginTop: 16,
-                  }}
-                >
-                  {[
-                    ["Daily", goals.daily, "drinks/day"],
-                    ["Weekly", goals.weekly, "drinks/week"],
-                  ].map(([l, v, u]) => (
-                    <div
-                      key={l}
-                      style={{
-                        background: C.bgRaise,
-                        borderRadius: 3,
-                        padding: "14px",
-                        textAlign: "center",
-                        border: "1px solid " + C.line,
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 9,
-                          letterSpacing: 2.5,
-                          color: C.faint,
-                          textTransform: "uppercase",
-                          marginBottom: 8,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {l}
-                      </div>
-                      <div
-                        style={{
-                          fontFamily: C.fontMono,
-                          fontSize: 28,
-                          fontWeight: 600,
-                          color: C.copper,
-                          lineHeight: 1,
-                        }}
-                      >
-                        {v}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 10,
-                          color: C.faint,
-                          marginTop: 6,
-                          letterSpacing: 0.5,
-                        }}
-                      >
-                        {u}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          </div>
-        )}
-
-        {/* SLEEP */}
-        {tab === "sleep" && (
-          <div>
-            <SectionHead
-              title="Sleep"
-              sub="Rest, recovery & quality"
-              action={<GhostBtn onClick={() => setExModal(true)}>↓ PDF</GhostBtn>}
-            />
-
-            <Card accent>
-              <div
-                style={{
-                  fontSize: 10,
-                  letterSpacing: 2.5,
-                  color: C.dim,
-                  textTransform: "uppercase",
-                  fontWeight: 600,
-                  marginBottom: 16,
-                }}
-              >
-                Log Sleep
-              </div>
-
-              <div style={{ marginBottom: 14 }}>
-                <label style={FL}>Date</label>
-                <Input
-                  type="date"
-                  value={sleepF.date}
-                  max={todayStr()}
-                  onChange={(e) =>
-                    setSleepF((f) => ({ ...f, date: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 12,
-                  marginBottom: 14,
-                }}
-              >
-                {[
-                  ["bedtime", "Bedtime"],
-                  ["waketime", "Wake time"],
-                ].map(([k, l]) => (
-                  <div key={k}>
-                    <label style={FL}>{l}</label>
-                    <Input
-                      type="time"
-                      value={sleepF[k]}
-                      onChange={(e) =>
-                        setSleepF((f) => ({ ...f, [k]: e.target.value }))
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
-
-              {sleepF.bedtime &&
-                sleepF.waketime &&
-                (() => {
-                  const h = calcHrs(sleepF.bedtime, sleepF.waketime);
-                  const col =
-                    h >= 8 ? C.green : h >= 6 ? C.amber : C.red;
-                  return (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 14,
-                        background: C.bgRaise,
-                        border: "1px solid " + C.line,
-                        borderRadius: 3,
-                        padding: "12px 16px",
-                        marginBottom: 14,
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontFamily: C.fontMono,
-                          fontSize: 28,
-                          fontWeight: 600,
-                          color: col,
-                          lineHeight: 1,
-                        }}
-                      >
-                        {h}h
-                      </div>
-                      <div>
-                        <div
-                          style={{
-                            fontSize: 9,
-                            letterSpacing: 2.5,
-                            color: C.faint,
-                            textTransform: "uppercase",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Duration
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            color: C.dim,
-                            marginTop: 3,
-                          }}
-                        >
-                          {h >= 8
-                            ? "Excellent"
-                            : h >= 7
-                            ? "Good"
-                            : h >= 6
-                            ? "Fair"
-                            : "Below recommended"}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-              <div style={{ marginBottom: 16 }}>
-                <label style={FL}>Night wakeups</label>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {[
-                    { v: 0, l: "None" },
-                    { v: 1, l: "1×" },
-                    { v: 2, l: "2×" },
-                    { v: 3, l: "3×" },
-                    { v: 4, l: "4×" },
-                    { v: 5, l: "5+" },
-                  ].map((o) => (
-                    <Pill
-                      key={o.v}
-                      label={o.l}
-                      active={sleepF.wakeups === o.v}
-                      onClick={() => setSleepF((f) => ({ ...f, wakeups: o.v }))}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div style={{ marginBottom: 16 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 10,
-                  }}
-                >
-                  <label style={{ ...FL, marginBottom: 0 }}>Sleep quality</label>
-                  <div
-                    style={{
-                      fontFamily: C.fontMono,
-                      fontSize: 16,
-                      color:
-                        sleepF.quality >= 8
-                          ? C.green
-                          : sleepF.quality >= 6
-                          ? C.amber
-                          : C.red,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {sleepF.quality}
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: C.faint,
-                        fontWeight: 400,
-                      }}
-                    >
-                      /10
-                    </span>
-                  </div>
-                </div>
-
-                <input
-                  type="range"
-                  min="1"
-                  max="10"
-                  value={sleepF.quality}
-                  onChange={(e) =>
-                    setSleepF((f) => ({ ...f, quality: parseInt(e.target.value) }))
-                  }
-                  style={{
-                    width: "100%",
-                    background:
-                      "linear-gradient(to right," +
-                      C.copper +
-                      " " +
-                      ((sleepF.quality - 1) / 9) * 100 +
-                      "%," +
-                      C.line2 +
-                      " " +
-                      ((sleepF.quality - 1) / 9) * 100 +
-                      "%)",
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: 16 }}>
-                <label style={FL}>Notes</label>
-                <Input
-                  type="text"
-                  value={sleepF.notes}
-                  placeholder="Stress, medication, dreams…"
-                  onChange={(e) =>
-                    setSleepF((f) => ({ ...f, notes: e.target.value }))
-                  }
-                />
-              </div>
-
-              <PrimaryBtn color={C.green} onClick={addSleep}>
-                Log Sleep
-              </PrimaryBtn>
-            </Card>
-
-            <Rule label={Object.keys(sleepLog).length + " nights logged"} />
-
-            {Object.entries(sleepLog).length === 0 ? (
-              <EmptyState msg="No logs yet" />
-            ) : (
-              Object.entries(sleepLog)
-                .sort(([a], [b]) => b.localeCompare(a))
-                .slice(0, 30)
-                .map(([date, rec]) => (
-                  <DataRow
-                    key={date}
-                    left={(rec.hours ?? "-") + "h"}
-                    right={(rec.bedtime || "-") + " → " + (rec.waketime || "-")}
-                    sub={
-                      fmtDate(date) +
-                      " · Quality " +
-                      rec.quality +
-                      "/10 · " +
-                      (rec.wakeups > 0
-                        ? rec.wakeups + " wakeup" + (rec.wakeups > 1 ? "s" : "")
-                        : "No wakeups") +
-                      (rec.notes ? " · " + rec.notes : "")
-                    }
-                    badge={
-                      rec.quality >= 8
-                        ? { label: "GOOD", color: C.green, dim: "rgba(111,207,151,0.1)" }
-                        : rec.quality >= 6
-                        ? { label: "FAIR", color: C.amber, dim: "rgba(200,168,75,0.1)" }
-                        : { label: "POOR", color: C.red, dim: "rgba(192,57,43,0.15)" }
-                    }
-                    onDelete={() =>
-                      ask("Remove this entry?", () =>
-                        setSleep((p) => {
-                          const n = { ...p };
-                          delete n[date];
-                          return n;
-                        })
-                      )
-                    }
-                  />
-                ))
-            )}
-          </div>
-        )}
-
-        {/* EXERCISE */}
-        {tab === "exercise" && (
-          <div>
-            <SectionHead
-              title="Exercise"
-              sub="Workouts, reps & performance"
-              action={<GhostBtn onClick={() => setExModal(true)}>↓ PDF</GhostBtn>}
-            />
-
-            <Card>
-              <div
-                style={{
-                  fontSize: 10,
-                  letterSpacing: 2.5,
-                  color: C.dim,
-                  textTransform: "uppercase",
-                  fontWeight: 600,
-                  marginBottom: 12,
-                }}
-              >
-                Session Date
-              </div>
-              <Input
-                type="date"
-                value={exDate}
-                max={todayStr()}
-                onChange={(e) => setExDate(e.target.value)}
-              />
-            </Card>
-
-            <Card accent>
-              <div
-                style={{
-                  fontSize: 10,
-                  letterSpacing: 2.5,
-                  color: C.dim,
-                  textTransform: "uppercase",
-                  fontWeight: 600,
-                  marginBottom: 16,
-                }}
-              >
-                Log Session — {fmtShort(exDate)}
-              </div>
-
-              {exTypes.length === 0 ? (
-                <EmptyState msg="Add exercises below" />
-              ) : (
-                exTypes.map((ex) => (
-                  <div
-                    key={ex.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      marginBottom: 14,
-                      paddingBottom: 14,
-                      borderBottom: "1px solid " + C.line,
-                    }}
-                  >
-                    <div style={{ flex: 1 }}>
-                      <div
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: C.text,
-                          marginBottom: 8,
-                          letterSpacing: 0.3,
-                        }}
-                      >
-                        {ex.name}
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <Input
-                          type="number"
-                          inputMode="numeric"
-                          style={{
-                            width: 80,
-                            textAlign: "center",
-                            padding: "9px",
-                            fontSize: 16,
-                            fontFamily: C.fontMono,
-                          }}
-                          value={getEV(exDate, ex.id)}
-                          placeholder="0"
-                          onChange={(e) => setEV(exDate, ex.id, e.target.value)}
-                        />
-                        <span
-                          style={{
-                            fontSize: 10,
-                            color: C.dim,
-                            letterSpacing: 1.5,
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          {ex.type === "reps" ? "reps" : "min"}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        fontSize: 9,
-                        letterSpacing: 1.5,
-                        color: C.faint,
-                        textTransform: "uppercase",
-                        fontWeight: 600,
-                        padding: "4px 8px",
-                        border: "1px solid " + C.line,
-                        borderRadius: 2,
-                      }}
-                    >
-                      {ex.type === "reps" ? "Reps" : "Time"}
-                    </div>
-                  </div>
-                ))
-              )}
-
-              {exTypes.length > 0 && (
-                <PrimaryBtn color={C.green} onClick={() => {}}>
-                  Done
-                </PrimaryBtn>
-              )}
-            </Card>
-
-            <Card>
-              <div
-                style={{
-                  fontSize: 10,
-                  letterSpacing: 2.5,
-                  color: C.dim,
-                  textTransform: "uppercase",
-                  fontWeight: 600,
-                  marginBottom: 16,
-                }}
-              >
-                Manage Exercises
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr auto",
-                  gap: 10,
-                  marginBottom: 12,
-                }}
-              >
-                <Input
-                  type="text"
-                  placeholder="Exercise name"
-                  value={newEx.name}
-                  onChange={(e) => setNewEx((f) => ({ ...f, name: e.target.value }))}
-                />
-
-                <select
-                  value={newEx.type}
-                  onChange={(e) => setNewEx((f) => ({ ...f, type: e.target.value }))}
-                  style={{
-                    ...inputStyle,
-                    width: "auto",
-                    padding: "11px 12px",
-                    cursor: "pointer",
-                  }}
-                >
-                  <option value="reps">Reps</option>
-                  <option value="time">Time</option>
-                </select>
-              </div>
-
-              {/* IMPORTANT FIX: addExType exists, addExercise does NOT */}
-              <PrimaryBtn color={C.green} style={{ marginBottom: 16 }} onClick={addExType}>
-                + Add Exercise
-              </PrimaryBtn>
-
-              <Rule />
-
-              {exTypes.map((ex) => (
-                <div
-                  key={ex.id}
-                  style={{                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "11px 0",
-                    borderBottom: "1px solid " + C.line,
-                  }}
-                >
-                  <div
-                    style={{
-                      flex: 1,
-                      fontSize: 13,
-                      fontWeight: 500,
-                      color: C.text,
-                      letterSpacing: 0.3,
-                    }}
-                  >
-                    {ex.name}
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize: 9,
-                      letterSpacing: 1.5,
-                      color: C.faint,
-                      textTransform: "uppercase",
-                      fontWeight: 600,
-                      padding: "3px 8px",
-                      border: "1px solid " + C.line,
-                      borderRadius: 2,
-                    }}
-                  >
-                    {ex.type === "reps" ? "Reps" : "Time"}
-                  </div>
-
-                  <DelBtn
-                    onClick={() =>
-                      ask("Remove exercise?", () =>
-                        setExTypes((p) => p.filter((e) => e.id !== ex.id))
-                      )
-                    }
-                  />
+              <div style={{fontSize:10,letterSpacing:2.5,color:C.dim,textTransform:"uppercase",fontWeight:600,marginBottom:14}}>Reference Scale</div>
+              {[["#6fcf97","Normal","< 135 / 85"],["#c8a84b","Elevated","135–139 / 85–89"],["#e07b39","Stage 1","140–159 / 90–99"],["#c0392b","Stage 2","160–179 / 100–119"],["#e74c3c","Crisis","≥ 180 / ≥ 120"]].map(([col,lbl,rng]) => (
+                <div key={lbl} style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
+                  <div style={{width:2,height:16,background:col,borderRadius:1,flexShrink:0}} />
+                  <span style={{fontSize:12,fontWeight:600,color:C.dim,width:72,letterSpacing:0.3}}>{lbl}</span>
+                  <span style={{fontFamily:C.fontMono,fontSize:11,color:C.faint}}>{rng}</span>
                 </div>
               ))}
             </Card>
 
-            <Rule label="session history" />
+            <Rule label={bpList.length+" readings"} />
+            {bpList.length===0 ? <EmptyState msg="No readings recorded yet" />
+            : bpList.map(r => {
+              const cat = getBP(r.systolic,r.diastolic);
+              return (
+                <DataRow key={r.id}
+                  left={r.systolic+"/"+r.diastolic}
+                  sub={fmtDate(r.date)+(r.notes?" — "+r.notes:"")+(r.pulse?" · ♥ "+r.pulse:"")}
+                  badge={cat}
+                  onDelete={() => ask("Remove this reading?", ()=>setBpList(p=>p.filter(x=>x.id!==r.id)))}
+                />
+              );
+            })}
+          </div>
+        )}
 
+        {/* ══ DRINKING ══ */}
+        {tab==="drink" && (
+          <div>
+            <SectionHead title="Drinking" sub="Daily intake & weekly targets" action={<GhostBtn onClick={()=>setExModal(true)}>↓ PDF</GhostBtn>} />
+
+            <Card accent>
+              <TapCounter value={todayDrinks} onChange={v => setDrinks(p=>({...p,[today]:v}))} color={C.copper} />
+              <ProgressBar value={todayDrinks} max={goals.daily} color={C.copper} />
+            </Card>
+
+            <Card>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:16}}>
+                <div style={{fontSize:10,letterSpacing:2.5,color:C.dim,textTransform:"uppercase",fontWeight:600}}>This Week</div>
+                <div style={{fontFamily:C.fontMono,fontSize:20,fontWeight:600,color:weekDrinks>goals.weekly?C.red:C.copper}}>
+                  {weekDrinks}
+                  <span style={{fontSize:12,color:C.faint,fontWeight:400}}> / {goals.weekly}</span>
+                </div>
+              </div>
+              <MiniChart values={last7().map(d=>drinks[d]||0)} color={C.copper} overColor={C.red} threshold={goals.daily} dates={last7().map(dayLbl)} />
+              <div style={{marginTop:10,fontSize:11,color:weekDrinks>goals.weekly?C.red:C.green,fontWeight:600,letterSpacing:0.5,textAlign:"right"}}>
+                {weekDrinks>goals.weekly ? (weekDrinks-goals.weekly)+" over weekly goal" : (goals.weekly-weekDrinks)+" remaining this week"}
+              </div>
+            </Card>
+
+            <Card>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:goalEdit?16:0}}>
+                <div style={{fontSize:10,letterSpacing:2.5,color:C.dim,textTransform:"uppercase",fontWeight:600}}>Targets</div>
+                <GhostBtn onClick={() => setGE(s=>!s)} style={{padding:"6px 12px",fontSize:9}}>{goalEdit?"Cancel":"Edit"}</GhostBtn>
+              </div>
+              {goalEdit ? (
+                <div style={{marginTop:16}}>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+                    {[["daily","Daily max"],["weekly","Weekly max"]].map(([k,l]) => (
+                      <div key={k}>
+                        <label style={FL}>{l}</label>
+                        <Input type="number" inputMode="numeric" style={{textAlign:"center"}} value={goalForm[k]||goals[k]} onChange={e=>setGF(f=>({...f,[k]:e.target.value}))} />
+                      </div>
+                    ))}
+                  </div>
+                  <PrimaryBtn onClick={() => {
+                    const d=parseInt(goalForm.daily||goals.daily), w=parseInt(goalForm.weekly||goals.weekly);
+                    if(d&&w){ setGoals({daily:d,weekly:w}); setGE(false); }
+                  }}>Save Targets</PrimaryBtn>
+                </div>
+              ) : (
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginTop:16}}>
+                  {[["Daily",goals.daily,"drinks/day"],["Weekly",goals.weekly,"drinks/week"]].map(([l,v,u]) => (
+                    <div key={l} style={{background:C.bgRaise,borderRadius:3,padding:"14px",textAlign:"center",border:"1px solid "+C.line}}>
+                      <div style={{fontSize:9,letterSpacing:2.5,color:C.faint,textTransform:"uppercase",marginBottom:8,fontWeight:600}}>{l}</div>
+                      <div style={{fontFamily:C.fontMono,fontSize:28,fontWeight:600,color:C.copper,lineHeight:1}}>{v}</div>
+                      <div style={{fontSize:10,color:C.faint,marginTop:6,letterSpacing:0.5}}>{u}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <Rule label="history" />
+            {Object.entries(drinks).filter(([,v])=>v>0).sort(([a],[b])=>b.localeCompare(a)).slice(0,30).map(([date,cnt]) => (
+              <DataRow key={date}
+                left={cnt+" drink"+(cnt!==1?"s":"")}
+                sub={fmtDate(date)}
+                badge={cnt>goals.daily ? {label:"OVER",color:C.red,dim:"rgba(192,57,43,0.15)"} : {label:"OK",color:C.green,dim:"rgba(111,207,151,0.1)"}}
+              />
+            ))}
+            {Object.entries(drinks).filter(([,v])=>v>0).length===0 && <EmptyState msg="No entries yet" />}
+          </div>
+        )}
+
+        {/* ══ SLEEP ══ */}
+        {tab==="sleep" && (
+          <div>
+            <SectionHead title="Sleep" sub="Rest, recovery & quality" action={<GhostBtn onClick={()=>setExModal(true)}>↓ PDF</GhostBtn>} />
+
+            <Card accent>
+              <div style={{fontSize:10,letterSpacing:2.5,color:C.dim,textTransform:"uppercase",fontWeight:600,marginBottom:16}}>Log Sleep</div>
+              <div style={{marginBottom:14}}>
+                <label style={FL}>Date</label>
+                <Input type="date" value={sleepF.date} max={todayStr()} onChange={e=>setSleepF(f=>({...f,date:e.target.value}))} />
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+                {[["bedtime","Bedtime"],["waketime","Wake time"]].map(([k,l]) => (
+                  <div key={k}>
+                    <label style={FL}>{l}</label>
+                    <Input type="time" value={sleepF[k]} onChange={e=>setSleepF(f=>({...f,[k]:e.target.value}))} />
+                  </div>
+                ))}
+              </div>
+
+              {sleepF.bedtime && sleepF.waketime && (() => {
+                const h = calcHrs(sleepF.bedtime, sleepF.waketime);
+                const col = h>=8 ? C.green : h>=6 ? C.amber : C.red;
+                return (
+                  <div style={{display:"flex",alignItems:"center",gap:14,background:C.bgRaise,border:"1px solid "+C.line,borderRadius:3,padding:"12px 16px",marginBottom:14}}>
+                    <div style={{fontFamily:C.fontMono,fontSize:28,fontWeight:600,color:col,lineHeight:1}}>{h}h</div>
+                    <div>
+                      <div style={{fontSize:9,letterSpacing:2.5,color:C.faint,textTransform:"uppercase",fontWeight:600}}>Duration</div>
+                      <div style={{fontSize:11,color:C.dim,marginTop:3}}>{h>=8?"Excellent":h>=7?"Good":h>=6?"Fair":"Below recommended"}</div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div style={{marginBottom:16}}>
+                <label style={FL}>Night wakeups</label>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {[{v:0,l:"None"},{v:1,l:"1×"},{v:2,l:"2×"},{v:3,l:"3×"},{v:4,l:"4×"},{v:5,l:"5+"}].map(o => (
+                    <Pill key={o.v} label={o.l} active={sleepF.wakeups===o.v} onClick={()=>setSleepF(f=>({...f,wakeups:o.v}))} />
+                  ))}
+                </div>
+              </div>
+
+              <div style={{marginBottom:16}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                  <label style={{...FL,marginBottom:0}}>Sleep quality</label>
+                  <div style={{fontFamily:C.fontMono,fontSize:16,color:sleepF.quality>=8?C.green:sleepF.quality>=6?C.amber:C.red,fontWeight:600}}>
+                    {sleepF.quality}
+                    <span style={{fontSize:11,color:C.faint,fontWeight:400}}>/10</span>
+                  </div>
+                </div>
+                <input type="range" min="1" max="10" value={sleepF.quality}
+                  onChange={e=>setSleepF(f=>({...f,quality:parseInt(e.target.value)}))}
+                  style={{width:"100%",background:"linear-gradient(to right,"+C.copper+" "+((sleepF.quality-1)/9*100)+"%,"+C.line2+" "+((sleepF.quality-1)/9*100)+"%)"}}
+                />
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:C.faint,marginTop:7,letterSpacing:1.5,textTransform:"uppercase"}}>
+                  <span>Poor</span><span>Fair</span><span>Excellent</span>
+                </div>
+              </div>
+
+              <div style={{marginBottom:16}}>
+                <label style={FL}>Notes</label>
+                <Input type="text" value={sleepF.notes} placeholder="Stress, medication, dreams…" onChange={e=>setSleepF(f=>({...f,notes:e.target.value}))} />
+              </div>
+              <PrimaryBtn color={C.green} onClick={addSleep}>Log Sleep</PrimaryBtn>
+            </Card>
+
+            <Rule label={Object.keys(sleepLog).length+" nights logged"} />
+            {Object.entries(sleepLog).sort(([a],[b])=>b.localeCompare(a)).length===0 ? <EmptyState msg="No logs yet" />
+            : Object.entries(sleepLog).sort(([a],[b])=>b.localeCompare(a)).slice(0,30).map(([date,rec]) => (
+              <DataRow key={date}
+                left={rec.hours+"h"}
+                right={rec.bedtime+" → "+rec.waketime}
+                sub={fmtDate(date)+" · Quality "+rec.quality+"/10 · "+(rec.wakeups>0?rec.wakeups+" wakeup"+(rec.wakeups>1?"s":""):"No wakeups")+(rec.notes?" · "+rec.notes:"")}
+                badge={rec.quality>=8?{label:"GOOD",color:C.green,dim:"rgba(111,207,151,0.1)"}:rec.quality>=6?{label:"FAIR",color:C.amber,dim:"rgba(200,168,75,0.1)"}:{label:"POOR",color:C.red,dim:"rgba(192,57,43,0.15)"}}
+                onDelete={() => ask("Remove this entry?", ()=>setSleep(p=>{const n={...p};delete n[date];return n;}))}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* ══ EXERCISE ══ */}
+        {tab==="exercise" && (
+          <div>
+            <SectionHead title="Exercise" sub="Workouts, reps & performance" action={<GhostBtn onClick={()=>setExModal(true)}>↓ PDF</GhostBtn>} />
+
+            <Card>
+              <div style={{fontSize:10,letterSpacing:2.5,color:C.dim,textTransform:"uppercase",fontWeight:600,marginBottom:12}}>Session Date</div>
+              <Input type="date" value={exDate} max={todayStr()} onChange={e=>setExDate(e.target.value)} />
+            </Card>
+
+            <Card accent>
+              <div style={{fontSize:10,letterSpacing:2.5,color:C.dim,textTransform:"uppercase",fontWeight:600,marginBottom:16}}>
+                Log Session — {fmtShort(exDate)}
+              </div>
+              {exTypes.length===0 ? <EmptyState msg="Add exercises below" />
+              : exTypes.map(ex => (
+                <div key={ex.id} style={{display:"flex",alignItems:"center",gap:12,marginBottom:14,paddingBottom:14,borderBottom:"1px solid "+C.line}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:600,color:C.text,marginBottom:8,letterSpacing:0.3}}>{ex.name}</div>
+                    <div style={{display:"flex",alignItems:"center",gap:10}}>
+                      <Input type="number" inputMode="numeric" style={{width:80,textAlign:"center",padding:"9px",fontSize:16,fontFamily:C.fontMono}}
+                        value={getEV(exDate,ex.id)} placeholder="0" onChange={e=>setEV(exDate,ex.id,e.target.value)} />
+                      <span style={{fontSize:10,color:C.dim,letterSpacing:1.5,textTransform:"uppercase"}}>{ex.type==="reps"?"reps":"min"}</span>
+                    </div>
+                  </div>
+                  <div style={{fontSize:9,letterSpacing:1.5,color:C.faint,textTransform:"uppercase",fontWeight:600,padding:"4px 8px",border:"1px solid "+C.line,borderRadius:2}}>{ex.type==="reps"?"Reps":"Time"}</div>
+                </div>
+              ))}
+              {exTypes.length>0 && <PrimaryBtn color={C.green} onClick={()=>{}}>Save Session</PrimaryBtn>}
+            </Card>
+
+            <Card>
+              <div style={{fontSize:10,letterSpacing:2.5,color:C.dim,textTransform:"uppercase",fontWeight:600,marginBottom:16}}>Manage Exercises</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:10,marginBottom:12}}>
+                <Input type="text" placeholder="Exercise name" value={newEx.name} onChange={e=>setNewEx(f=>({...f,name:e.target.value}))} />
+                <select value={newEx.type} onChange={e=>setNewEx(f=>({...f,type:e.target.value}))} style={{...IS,width:"auto",padding:"11px 12px",cursor:"pointer"}}>
+                  <option value="reps">Reps</option>
+                  <option value="time">Time</option>
+                </select>
+              </div>
+              <PrimaryBtn color={C.green} style={{marginBottom:16}} onClick={addExercise}>+ Add Exercise</PrimaryBtn>
+              <Rule />
+              {exTypes.map(ex => {
+                const [hov, setH] = [false, ()=>{}];
+                return (
+                  <div key={ex.id} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 0",borderBottom:"1px solid "+C.line}}>
+                    <div style={{flex:1,fontSize:13,fontWeight:500,color:C.text,letterSpacing:0.3}}>{ex.name}</div>
+                    <div style={{fontSize:9,letterSpacing:1.5,color:C.faint,textTransform:"uppercase",fontWeight:600,padding:"3px 8px",border:"1px solid "+C.line,borderRadius:2}}>{ex.type==="reps"?"Reps":"Time"}</div>
+                    <DelBtn onClick={() => ask("Remove exercise?", ()=>setExTypes(p=>p.filter(e=>e.id!==ex.id)))} />
+                  </div>
+                );
+              })}
+            </Card>
+
+            <Rule label="session history" />
             {(() => {
               const sessions = Object.entries(exLog)
-                .filter(([, v]) =>
-                  Object.values(v).some((x) => x && x !== "0" && x !== "")
-                )
-                .sort(([a], [b]) => b.localeCompare(a));
-
-              if (!sessions.length)
-                return <EmptyState msg="No sessions logged yet" />;
-
-              return sessions.slice(0, 20).map(([date, log]) => {
-                const done = exTypes.filter(
-                  (e) => log[e.id] && log[e.id] !== "0" && log[e.id] !== ""
-                );
+                .filter(([,v]) => Object.values(v).some(x=>x&&x!=="0"&&x!==""))
+                .sort(([a],[b]) => b.localeCompare(a));
+              if (!sessions.length) return <EmptyState msg="No sessions logged yet" />;
+              return sessions.slice(0,20).map(([date,log]) => {
+                const done = exTypes.filter(e => log[e.id]&&log[e.id]!=="0"&&log[e.id]!=="");
                 if (!done.length) return null;
-
                 return (
-                  <div key={date} style={{ marginBottom: 16 }}>
-                    <div
-                      style={{
-                        fontSize: 9,
-                        letterSpacing: 2.5,
-                        color: C.faint,
-                        textTransform: "uppercase",
-                        fontWeight: 600,
-                        marginBottom: 8,
-                        paddingTop: 4,
-                      }}
-                    >
-                      {fmtDate(date)}
-                    </div>
-
-                    {done.map((ex) => (
-                      <div
-                        key={ex.id}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          padding: "8px 0",
-                          borderBottom: "1px solid " + C.line,
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: 13,
-                            color: C.dim,
-                            letterSpacing: 0.3,
-                          }}
-                        >
-                          {ex.name}
-                        </span>
-
-                        <span
-                          style={{
-                            fontFamily: C.fontMono,
-                            fontSize: 13,
-                            color: C.green,
-                            fontWeight: 600,
-                          }}
-                        >
-                          {log[ex.id]} {ex.type === "reps" ? "reps" : "min"}
-                        </span>
+                  <div key={date} style={{marginBottom:16}}>
+                    <div style={{fontSize:9,letterSpacing:2.5,color:C.faint,textTransform:"uppercase",fontWeight:600,marginBottom:8,paddingTop:4}}>{fmtDate(date)}</div>
+                    {done.map(ex => (
+                      <div key={ex.id} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid "+C.line}}>
+                        <span style={{fontSize:13,color:C.dim,letterSpacing:0.3}}>{ex.name}</span>
+                        <span style={{fontFamily:C.fontMono,fontSize:13,color:C.green,fontWeight:600}}>{log[ex.id]} {ex.type==="reps"?"reps":"min"}</span>
                       </div>
                     ))}
                   </div>
@@ -2193,33 +1126,19 @@ export default function App() {
             })()}
           </div>
         )}
+
       </div>
     </div>
   );
 }
 
-// Small stateless delete button
+// Small stateless delete button to avoid hook-in-loop issue
 function DelBtn({ onClick }) {
   const [hov, setHov] = useState(false);
   return (
-    <button
-      onClick={onClick}
+    <button onClick={onClick}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
-      style={{
-        background: "transparent",
-        border: "1px solid " + (hov ? C.red : C.line),
-        color: hov ? C.red : C.faint,
-        borderRadius: 2,
-        padding: "5px 9px",
-        cursor: "pointer",
-        fontSize: 11,
-        fontFamily: C.fontSans,
-        fontWeight: 600,
-        transition: "all 0.15s",
-      }}
-    >
-      ✕
-    </button>
+      style={{background:"transparent",border:"1px solid "+(hov?C.red:C.line),color:hov?C.red:C.faint,borderRadius:2,padding:"5px 9px",cursor:"pointer",fontSize:11,fontFamily:C.fontSans,fontWeight:600,transition:"all 0.15s"}}>✕</button>
   );
 }
