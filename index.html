@@ -386,6 +386,19 @@ function ExportModal({ onClose, data }) {
   );
 }
 
+// ─── Save Session Button with feedback ───────────────────────────────────────
+function SaveSessionBtn({ exDate, exTypes, getEV }) {
+  const [saved, setSaved] = useState(false);
+  const hasData = exTypes.some(ex => { const v = getEV(exDate, ex.id); return v && v !== "0" && v !== ""; });
+  const handleSave = () => {
+    if (!hasData) return;
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+  if (saved) return <div style={{background:"rgba(111,207,151,0.08)",border:"1px solid "+C.green,borderRadius:4,padding:14,textAlign:"center",color:C.green,fontWeight:700,fontSize:12,letterSpacing:2,textTransform:"uppercase"}}>✓ Session Saved</div>;
+  return <PrimaryBtn color={C.green} disabled={!hasData} onClick={handleSave}>Save Session</PrimaryBtn>;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN APP
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -436,7 +449,6 @@ function App() {
   const addExType=()=>{if(!newEx.name.trim())return;setExTypes(p=>[...p,{id:Date.now(),name:newEx.name.trim(),type:newEx.type}]);setNewEx({name:"",type:"reps"});};
 
   const allData={bpReadings:bpList,drinkLog:drinks,drinkGoals:goals,sleepLog,exercises:exTypes,exLog};
-  const IS={...inputStyle};
 
   const TABS=[{id:"dash",label:"Overview"},{id:"bp",label:"Blood Pressure"},{id:"drink",label:"Drinking"},{id:"sleep",label:"Sleep"},{id:"exercise",label:"Exercise"}];
 
@@ -583,7 +595,7 @@ function App() {
                       <div key={k}><label style={FL}>{l}</label><Input type="number" inputMode="numeric" style={{textAlign:"center"}} value={goalForm[k]||goals[k]} onChange={e=>setGF(f=>({...f,[k]:e.target.value}))}/></div>
                     ))}
                   </div>
-                  <PrimaryBtn onClick={()=>{const d=parseInt(goalForm.daily||goals.daily),w=parseInt(goalForm.weekly||goals.weekly);if(d&&w){setGoals({daily:d,weekly:w});setGE(false);}}}>Save Targets</PrimaryBtn>
+                  <PrimaryBtn onClick={()=>{const d=parseInt(goalForm.daily||goals.daily),w=parseInt(goalForm.weekly||goals.weekly);if(d&&w){setGoals({daily:d,weekly:w});setGF({daily:"",weekly:""});setGE(false);}}}>Save Targets</PrimaryBtn>
                 </div>
               ) : (
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginTop:16}}>
@@ -597,7 +609,7 @@ function App() {
                 </div>
               )}
             </Card>
-            <Rule label="history"/>
+            <Rule label={Object.entries(drinks).filter(([,v])=>v>0).length+" days logged"}/>
             {Object.entries(drinks).filter(([,v])=>v>0).sort(([a],[b])=>b.localeCompare(a)).slice(0,30).map(([date,cnt])=>(
               <DataRow key={date} left={cnt+" drink"+(cnt!==1?"s":"")} sub={fmtDate(date)} badge={cnt>goals.daily?{label:"OVER",color:C.red,dim:"rgba(192,57,43,0.15)"}:{label:"OK",color:C.green,dim:"rgba(111,207,151,0.1)"}}/>
             ))}
@@ -677,13 +689,13 @@ function App() {
                   <div style={{fontSize:9,letterSpacing:1.5,color:C.faint,textTransform:"uppercase",fontWeight:600,padding:"4px 8px",border:"1px solid "+C.line,borderRadius:2}}>{ex.type==="reps"?"Reps":"Time"}</div>
                 </div>
               ))}
-              {exTypes.length>0 && <PrimaryBtn color={C.green} onClick={()=>{}}>Save Session</PrimaryBtn>}
+              {exTypes.length>0 && <SaveSessionBtn exDate={exDate} exTypes={exTypes} getEV={getEV}/>}
             </Card>
             <Card>
               <div style={{fontSize:10,letterSpacing:2.5,color:C.dim,textTransform:"uppercase",fontWeight:600,marginBottom:16}}>Manage Exercises</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:10,marginBottom:12}}>
                 <Input type="text" placeholder="Exercise name" value={newEx.name} onChange={e=>setNewEx(f=>({...f,name:e.target.value}))}/>
-                <select value={newEx.type} onChange={e=>setNewEx(f=>({...f,type:e.target.value}))} style={{...IS,width:"auto",padding:"11px 12px",cursor:"pointer"}}>
+                <select value={newEx.type} onChange={e=>setNewEx(f=>({...f,type:e.target.value}))} style={{background:C.bgRaise,border:"1px solid "+C.line2,borderRadius:3,color:C.text,fontFamily:C.fontMono,fontSize:15,padding:"11px 12px",outline:"none",cursor:"pointer",WebkitAppearance:"none",appearance:"none"}}>
                   <option value="reps">Reps</option>
                   <option value="time">Time</option>
                 </select>
