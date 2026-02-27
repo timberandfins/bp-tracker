@@ -260,13 +260,12 @@ function MiniChart({ values, color=C.copper, overColor=C.red, threshold, dates }
 function TapCounter({ value, onChange, color=C.copper }) {
   return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:32,padding:"20px 0 16px"}}>
-      {["-","+"]. map(op => (
-        <CircleBtn key={op} label={op} color={color} onClick={() => onChange(op==="-" ? Math.max(0,value-1) : value+1)} />
-      ))}
-      <div style={{textAlign:"center",minWidth:80,order:-1,order:0}}>
+      <CircleBtn label="-" color={color} onClick={() => onChange(Math.max(0,value-1))} />
+      <div style={{textAlign:"center",minWidth:80}}>
         <div style={{fontFamily:C.fontMono,fontSize:64,fontWeight:600,color,lineHeight:1,letterSpacing:-2}}>{value}</div>
         <div style={{fontSize:9,letterSpacing:2.5,color:C.dim,textTransform:"uppercase",marginTop:8,fontWeight:600}}>Drinks Today</div>
       </div>
+      <CircleBtn label="+" color={color} onClick={() => onChange(value+1)} />
     </div>
   );
 }
@@ -1088,7 +1087,7 @@ export default function App() {
                   <option value="time">Time</option>
                 </select>
               </div>
-              <PrimaryBtn color={C.green} style={{marginBottom:16}} onClick={addExercise}>+ Add Exercise</PrimaryBtn>
+              <PrimaryBtn color={C.green} style={{marginBottom:16}} onClick={addExType}>+ Add Exercise</PrimaryBtn>
               <Rule />
               {exTypes.map(ex => {
                 const [hov, setH] = [false, ()=>{}];
